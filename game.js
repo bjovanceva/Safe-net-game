@@ -14,6 +14,17 @@ let safePasswords = []
 let notSafePasswords = []
 
 
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Update info button position
+    info.x = canvas.width - 40;
+    info.y = 40;
+}
+
+
+
 startBtn.addEventListener("click", () => {
     startScreen.style.display = "none";
     canvas.style.display = "block";
@@ -113,18 +124,21 @@ function spawnTwoPasswords() {
 
 
 
+    const centerX = canvas.width / 2;
+    const spacing = Math.min(260, canvas.width / 2 - 40);
+
     passwordChoices.push({
         text: generators[firstIndex](),
-        x: 130,
-        y: 250,
+        x: centerX - spacing - 110,
+        y: canvas.height / 2,
         width: 220,
         height: 55
     });
 
     passwordChoices.push({
         text: generators[secondIndex](),
-        x: 490,
-        y: 250,
+        x: centerX + spacing - 110,
+        y: canvas.height / 2,
         width: 220,
         height: 55
     });
@@ -136,7 +150,9 @@ function spawnTwoPasswords() {
 
 
 function drawPasswords() {
-    ctx.font = "bold 18px Arial";
+    // ctx.font = "bold 18px Arial";
+    const scaleFont = Math.max(14, canvas.width * 0.02);
+    ctx.font = `bold ${scaleFont}px Arial`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
@@ -197,14 +213,18 @@ function roundRect(x, y, w, h, r, fill, stroke) {
 
 function drawScore() {
     ctx.fillStyle = "#f6f3f3";
-    ctx.font = "22px Arial";
+    // ctx.font = "22px Arial";
+    const scaleFont = Math.max(14, canvas.width * 0.02);
+    ctx.font = `bold ${scaleFont}px Arial`;
     ctx.textAlign = "left";
     ctx.fillText("Score: " + score, 20, 30);
 }
 
 function drawInstructions() {
     ctx.fillStyle = "#f6f3f3";
-    ctx.font = "18px Arial";
+    // ctx.font = "18px Arial";
+    const scaleFont = Math.max(14, canvas.width * 0.02);
+    ctx.font = `bold ${scaleFont}px Arial`;
     ctx.textAlign = "center";
     ctx.fillText(
         "Click the SAFER password",
@@ -296,7 +316,9 @@ function drawTimer() {
 
 
     ctx.fillStyle = "#ffffff";
-    ctx.font = "26px Arial";
+    // ctx.font = "26px Arial";
+    const scaleFont = Math.max(14, canvas.width * 0.02);
+    ctx.font = `bold ${scaleFont}px Arial`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(
@@ -333,6 +355,10 @@ No personal info
 - Does NOT include: Name, Birth year, Username`
 };
 
+
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
 // ====== MOUSE EVENTS ======
 canvas.addEventListener("mousemove", (e) => {
     const rect = canvas.getBoundingClientRect();
@@ -364,7 +390,9 @@ function drawInfoButton() {
 
     // Draw "?" in the center
     ctx.fillStyle = "white";
-    ctx.font = "bold 20px Arial";
+    // ctx.font = "bold 20px Arial";
+    const scaleFont = Math.max(14, canvas.width * 0.02);
+    ctx.font = `bold ${scaleFont}px Arial`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("?", info.x, info.y);
@@ -388,7 +416,9 @@ function drawInfoButton() {
 
         // Tooltip text
         ctx.fillStyle = "#f3f4f6"; // off-white text
-        ctx.font = "14px Arial";
+        // ctx.font = "14px Arial";
+        const scaleFont = Math.max(14, canvas.width * 0.02);
+        ctx.font = `bold ${scaleFont}px Arial`;
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
         lines.forEach((line, i) => {
