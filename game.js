@@ -6,12 +6,45 @@ const ctx = canvas.getContext("2d");
 let score = 0;
 let gameRunning = false;
 let passwordChoices = [];
-let roundTime = 5;        // seconds per round
+let currentImages = [];
+let roundTime = 5;
 let timeLeft = roundTime;
 let lastTime = Date.now();
 let reallySafePasswords = []
 let safePasswords = []
 let notSafePasswords = []
+
+let currentRoundMode = "passwords";
+
+let gameDuration = 20;
+let timeElapsed = 0;
+let gameEnded = false;
+
+const safeImages = [
+    "safe/good1_final.jpg",
+    "safe/good2_final.jpg",
+    "safe/good3_final.jpg"
+];
+
+
+const unsafeImages = [
+    "unsafe/bad1_final.jpg",
+    "unsafe/bad2_final.jpg",
+    "unsafe/bad3_final.jpg"
+];
+
+
+const safeImgs = safeImages.map(src => {
+    const img = new Image();
+    img.src = src;
+    return img;
+});
+
+const unsafeImgs = unsafeImages.map(src => {
+    const img = new Image();
+    img.src = src;
+    return img;
+});
 
 
 function resizeCanvas() {
@@ -29,7 +62,6 @@ function resizeCanvas() {
 }
 
 
-
 startBtn.addEventListener("click", () => {
     startScreen.style.display = "none";
     canvas.style.display = "block";
@@ -39,6 +71,8 @@ startBtn.addEventListener("click", () => {
 function startGame() {
     score = 0;
     gameRunning = true;
+    gameEnded = false;
+    timeElapsed = 0;
     startNewRound();
     gameLoop();
 }
@@ -149,25 +183,66 @@ function spawnTwoPasswords() {
     });
 
 
+
     passwordChoices.sort(() => Math.random() - 0.5);
 
 }
 
+function spawnTwoImages() {
+    currentImages = [];
+
+    const safeImg = safeImgs[Math.floor(Math.random() * safeImgs.length)];
+    const unsafeImg = unsafeImgs[Math.floor(Math.random() * unsafeImgs.length)];
+
+    currentImages.push(safeImg, unsafeImg);
+
+
+    currentImages.sort(() => Math.random() - 0.5);
+}
+
+function drawImages() {
+    const centerX = canvas.width / 2;
+    const y = canvas.height * 0.5; // vertical center
+    const spacing = Math.min(260, canvas.width / 2 - 40);
+
+    currentImages.forEach((img, index) => {
+        if (!img.complete) return;
+
+
+        let imgWidth = img.naturalWidth;
+        let imgHeight = img.naturalHeight;
+
+        const maxWidth = canvas.width / 2 - 40;
+        const maxHeight = canvas.height * 0.5;
+        const scale = Math.min(maxWidth / imgWidth, maxHeight / imgHeight, 1);
+
+        imgWidth *= scale;
+        imgHeight *= scale;
+
+
+        const x = index === 0
+            ? centerX - spacing - imgWidth / 2
+            : centerX + spacing - imgWidth / 2;
+        const drawY = y - imgHeight / 2;
+
+        ctx.globalAlpha = 0.9;
+        ctx.drawImage(img, x, drawY, imgWidth, imgHeight);
+        ctx.globalAlpha = 1;
+    });
+}
 
 function drawPasswords() {
-    // ctx.font = "bold 18px Arial";
     const scaleFont = Math.max(14, canvas.width * 0.02);
     ctx.font = `bold ${scaleFont}px Arial`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    passwordChoices.forEach(pw => {
+    passwordChoices.forEach((pw, index) => {
         const r = 12;
 
         ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
         ctx.shadowBlur = 10;
         ctx.shadowOffsetY = 4;
-
 
         const gradient = ctx.createLinearGradient(
             pw.x,
@@ -181,21 +256,14 @@ function drawPasswords() {
         ctx.fillStyle = gradient;
         roundRect(pw.x, pw.y, pw.width, pw.height, r, true, false);
 
-
         ctx.shadowColor = "transparent";
-
-
         ctx.strokeStyle = "#f8fafc";
         ctx.lineWidth = 2;
         roundRect(pw.x, pw.y, pw.width, pw.height, r, false, true);
 
-
         ctx.fillStyle = "#f8fafc";
-        ctx.fillText(
-            pw.text,
-            pw.x + pw.width / 2,
-            pw.y + pw.height / 2
-        );
+        ctx.fillText(pw.text, pw.x + pw.width / 2, pw.y + pw.height / 2);
+
     });
 }
 
@@ -234,7 +302,7 @@ function drawInstructions() {
     ctx.fillText(
         "Click the SAFER password",
         canvas.width / 2 - 20,
-        120
+        180
     );
 }
 
@@ -244,20 +312,53 @@ function update() {
     lastTime = now;
 
     timeLeft -= delta;
+    timeElapsed += delta;
 
     if (timeLeft <= 0) {
-        score -= 5;
         startNewRound();
+    }
+
+
+    if (timeElapsed >= gameDuration) {
+        gameEnded = true;
+        gameRunning = false;
     }
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (gameEnded) {
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#ffffff";
+        const scaleFont = Math.max(24, canvas.width * 0.05);
+        ctx.font = `bold ${scaleFont}px Arial`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(`Game Over! Score: ${score}`, canvas.width / 2, canvas.height / 2);
+        return;
+    }
+
     drawInstructions();
-    drawPasswords();
     drawScore();
     drawTimer();
     drawInfoButton();
+
+    if (currentRoundMode === "passwords") {
+        drawPasswords();
+    } else if (currentRoundMode === "images") {
+        drawImages();
+    }
+
+
+    const remaining = Math.max(0, Math.ceil(gameDuration - timeElapsed));
+    ctx.fillStyle = "#f6f3f3";
+    const scaleFont = Math.max(14, canvas.width * 0.02);
+    ctx.font = `bold ${scaleFont}px Arial`;
+    ctx.textAlign = "center";
+    ctx.fillText(`You have ${remaining} seconds to get more points`, canvas.width / 2, 550);
 }
 
 function gameLoop() {
@@ -273,39 +374,76 @@ canvas.addEventListener("click", (e) => {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    passwordChoices.forEach(pw => {
-        if (
-            mouseX >= pw.x &&
-            mouseX <= pw.x + pw.width &&
-            mouseY >= pw.y &&
-            mouseY <= pw.y + pw.height
-        ) {
-            handleChoice(pw.text);
-        }
-    });
+    if (currentRoundMode === "passwords") {
+        passwordChoices.forEach(pw => {
+            if (
+                mouseX >= pw.x &&
+                mouseX <= pw.x + pw.width &&
+                mouseY >= pw.y &&
+                mouseY <= pw.y + pw.height
+            ) {
+                handlePasswordChoice(pw.text);
+            }
+        });
+    } else if (currentRoundMode === "images") {
+        currentImages.forEach((img, index) => {
+            const centerX = canvas.width / 2;
+            const spacing = Math.min(260, canvas.width / 2 - 40);
+            const imgWidth = 200;
+            const imgHeight = 150;
+            const x = index === 0 ? centerX - spacing - 100 : centerX + spacing - 100;
+            const y = canvas.height * 0.5 - 75;
+
+            if (
+                mouseX >= x &&
+                mouseX <= x + imgWidth &&
+                mouseY >= y &&
+                mouseY <= y + imgHeight
+            ) {
+                handleImageChoice(img);
+            }
+        });
+    }
 });
 
-function handleChoice(text) {
 
+function handlePasswordChoice(text) {
     if (reallySafePasswords.includes(text)) {
         score += 2;
-    } else if (safePasswords.includes(text)){
+    } else if (safePasswords.includes(text)) {
         score += 1;
+    } else {
+        score -= 1;
     }
-    else score -= 1;
+    startNewRound();
+}
 
+function handleImageChoice(img) {
+    if (safeImgs.includes(img)) {
+        score += 2; // safe image
+    } else {
+        score += 0; // unsafe image
+    }
     startNewRound();
 }
 
 function startNewRound() {
-    spawnTwoPasswords();
+
+    if (Math.random() < 0.5) {
+        currentRoundMode = "passwords";
+        spawnTwoPasswords();
+    } else {
+        currentRoundMode = "images";
+        spawnTwoImages();
+    }
+
     timeLeft = roundTime;
     lastTime = Date.now();
 }
 
 function drawTimer() {
     const centerX = canvas.width / 2 - 5;
-    const centerY = 275;
+    const centerY = 280;
     const radius = 40;
 
 
@@ -367,7 +505,7 @@ Username`
 window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
-// ====== MOUSE EVENTS ======
+
 canvas.addEventListener("mousemove", (e) => {
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
@@ -378,11 +516,11 @@ canvas.addEventListener("mousemove", (e) => {
     info.hover = Math.sqrt(dx * dx + dy * dy) <= info.radius;
 });
 
-// ====== DRAW INFO BUTTON ======
+
 function drawInfoButton() {
     if (!info.visible) return;
 
-    // Draw gradient circle with shadow
+
     const gradient = ctx.createRadialGradient(info.x, info.y, info.radius / 2, info.x, info.y, info.radius);
     gradient.addColorStop(0, "#0B0A0AFF");
     gradient.addColorStop(1, "#f6f3f3");
@@ -396,7 +534,7 @@ function drawInfoButton() {
     ctx.shadowBlur = 0;
     ctx.closePath();
 
-    // Draw "?" in the center
+
     ctx.fillStyle = "white";
     // ctx.font = "bold 20px Arial";
     const scaleFont = Math.max(14, canvas.width * 0.02);
@@ -405,7 +543,7 @@ function drawInfoButton() {
     ctx.textBaseline = "middle";
     ctx.fillText("?", info.x, info.y);
 
-    // Tooltip
+
     if (info.hover) {
         const padding = 12;
         const maxWidth = 380;
@@ -413,20 +551,20 @@ function drawInfoButton() {
         const lineHeight = 18;
         const tooltipHeight = lines.length * lineHeight + padding * 2;
 
-        // Rounded rectangle
+
         const tooltipX = info.x - maxWidth + 30;
         const tooltipY = info.y + 30;
 
-        ctx.fillStyle = "rgba(30,41,59,0.95)"; // dark semi-transparent background
+        ctx.fillStyle = "rgba(30,41,59,0.95)";
         ctx.strokeStyle = "#f6f3f3";
         ctx.lineWidth = 2;
         rounddRect(ctx, tooltipX, tooltipY, maxWidth, tooltipHeight, 12, true, true);
 
-        // Tooltip text
+
         ctx.fillStyle = "#f3f4f6"; // off-white text
         // ctx.font = "14px Arial";
         const scaleFont = Math.max(14, canvas.width * 0.02);
-        ctx.font = `bold ${scaleFont}px Arial`;
+        ctx.font = `${scaleFont}px Arial`;
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
         lines.forEach((line, i) => {
@@ -435,7 +573,6 @@ function drawInfoButton() {
     }
 }
 
-// ====== HELPER: Rounded rectangle ======
 function rounddRect(ctx, x, y, width, height, radius, fill, stroke) {
     if (typeof stroke === "undefined") stroke = true;
     if (typeof radius === "undefined") radius = 5;
@@ -495,7 +632,7 @@ function rounddRect(ctx, x, y, width, height, radius, fill, stroke) {
 
 // const title = document.getElementById("game-title");
 //
-// // Faster + more fireworks
+//
 // let fireworkInterval = setInterval(() => {
 //     createFireworkBurst();
 //     createFireworkBurst();
@@ -504,7 +641,7 @@ function rounddRect(ctx, x, y, width, height, radius, fill, stroke) {
 // function createFireworkBurst() {
 //     const rect = title.getBoundingClientRect();
 //
-//     // Random position around the title
+//
 //     const x =
 //         rect.left +
 //         Math.random() * rect.width +

@@ -61,10 +61,10 @@ body {
 /*    }*/
 /*}*/
 
-/* Game canvas */
+
 canvas {
     display: none;
     background: #020617;
-    margin-top: 88px;
-    margin-left: 340px;
+    margin-top: 74px;
+    margin-left: 300px;
 }
