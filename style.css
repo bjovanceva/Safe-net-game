@@ -61,10 +61,27 @@ body {
 /*    }*/
 /*}*/
 
-/* Game canvas */
 canvas {
     display: none;
     background: #020617;
-    margin-top: 88px;
-    margin-left: 340px;
+    width: 100%;
+    max-width: 900px;
+    height: auto;
+    aspect-ratio: 17 / 11;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5);
 }
+
+#game-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 16px;
+}
+/*canvas {*/
+/*    display: none;*/
+/*    background: #020617;*/
+/*    margin-top: 88px;*/
+/*    margin-left: 340px;*/
+/*}*/
