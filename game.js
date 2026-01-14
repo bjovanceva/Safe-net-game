@@ -14,23 +14,6 @@ let safePasswords = []
 let notSafePasswords = []
 
 
-function resizeCanvas() {
-    const maxWidth = 900;
-    const aspectRatio = 17 / 11;
-
-    let width = Math.min(window.innerWidth - 32, maxWidth);
-    let height = width / aspectRatio;
-
-    canvas.width = width;
-    canvas.height = height;
-
-    // Info button position
-    info.x = canvas.width - 40;
-    info.y = 40;
-}
-
-
-
 startBtn.addEventListener("click", () => {
     startScreen.style.display = "none";
     canvas.style.display = "block";
@@ -130,26 +113,21 @@ function spawnTwoPasswords() {
 
 
 
-    const boxWidth = canvas.width * 0.28;
-    const boxHeight = canvas.height * 0.1;
-    const y = canvas.height * 0.45;
-
     passwordChoices.push({
         text: generators[firstIndex](),
-        x: canvas.width * 0.15,
-        y,
-        width: boxWidth,
-        height: boxHeight
+        x: 130,
+        y: 250,
+        width: 220,
+        height: 55
     });
 
     passwordChoices.push({
         text: generators[secondIndex](),
-        x: canvas.width * 0.57,
-        y,
-        width: boxWidth,
-        height: boxHeight
+        x: 490,
+        y: 250,
+        width: 220,
+        height: 55
     });
-
 
 
     passwordChoices.sort(() => Math.random() - 0.5);
@@ -158,9 +136,7 @@ function spawnTwoPasswords() {
 
 
 function drawPasswords() {
-    // ctx.font = "bold 18px Arial";
-    const scaleFont = Math.max(14, canvas.width * 0.02);
-    ctx.font = `bold ${scaleFont}px Arial`;
+    ctx.font = "bold 18px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
@@ -221,16 +197,14 @@ function roundRect(x, y, w, h, r, fill, stroke) {
 
 function drawScore() {
     ctx.fillStyle = "#f6f3f3";
-    // ctx.font = "22px Arial";
-    ctx.font = `${canvas.width * 0.022}px Arial`;
+    ctx.font = "22px Arial";
     ctx.textAlign = "left";
     ctx.fillText("Score: " + score, 20, 30);
 }
 
 function drawInstructions() {
     ctx.fillStyle = "#f6f3f3";
-    // ctx.font = "18px Arial";
-    ctx.font = `${canvas.width * 0.022}px Arial`;
+    ctx.font = "18px Arial";
     ctx.textAlign = "center";
     ctx.fillText(
         "Click the SAFER password",
@@ -305,10 +279,8 @@ function startNewRound() {
 }
 
 function drawTimer() {
-    // const centerX = canvas.width / 2 - 5;
-    // const centerY = 275;
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height * 0.55;
+    const centerX = canvas.width / 2 - 5;
+    const centerY = 275;
     const radius = 40;
 
 
@@ -324,8 +296,7 @@ function drawTimer() {
 
 
     ctx.fillStyle = "#ffffff";
-    // ctx.font = "26px Arial";
-    ctx.font = `${canvas.width * 0.022}px Arial`;
+    ctx.font = "26px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(
@@ -362,10 +333,6 @@ No personal info
 - Does NOT include: Name, Birth year, Username`
 };
 
-
-window.addEventListener("resize", resizeCanvas);
-resizeCanvas();
-
 // ====== MOUSE EVENTS ======
 canvas.addEventListener("mousemove", (e) => {
     const rect = canvas.getBoundingClientRect();
@@ -397,8 +364,7 @@ function drawInfoButton() {
 
     // Draw "?" in the center
     ctx.fillStyle = "white";
-    // ctx.font = "bold 20px Arial";
-    ctx.font = `${canvas.width * 0.022}px Arial`;
+    ctx.font = "bold 20px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("?", info.x, info.y);
@@ -422,8 +388,7 @@ function drawInfoButton() {
 
         // Tooltip text
         ctx.fillStyle = "#f3f4f6"; // off-white text
-        // ctx.font = "14px Arial";
-        ctx.font = `${canvas.width * 0.022}px Arial`;
+        ctx.font = "14px Arial";
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
         lines.forEach((line, i) => {
