@@ -109,6 +109,14 @@ body {
     text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
 }
 
+#canvas-placeholder{
+    display: flex;
+    flex-grow: 1;
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+}
+
 canvas {
     background: rgba(15, 23, 42, 0.9);
     border: 1px solid rgba(0, 242, 255, 0.3);

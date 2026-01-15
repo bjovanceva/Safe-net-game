@@ -129,8 +129,6 @@ function resizeCanvas() {
         displayHeight = heightByWidth;
     }
 
-    const dpr = window.devicePixelRatio || 1;
-
     // Set internal resolution (High-DPI)
     canvas.width = displayWidth * dpr;
     canvas.height = displayHeight * dpr;
@@ -145,6 +143,8 @@ function resizeCanvas() {
 
     // Adjust top area and UI positions
     topArea.style.height = "10vh"; // Use vh for consistency
+
+    // TODO Change these to percentages,used for help button center
     info.x = displayWidth - 30;
     info.y = 30;
 }
@@ -236,7 +236,8 @@ function spawnTwoPasswords() {
     let secondIndex;
     do { secondIndex = Math.floor(Math.random() * generators.length); } while (secondIndex === firstIndex);
 
-    const boxWidth = Math.max(180, vWidth * 0.3);
+    //TODO Change these so that the password box is always fit good for the text needed
+    const boxWidth = Math.max(180, vWidth * 0.25);
     const boxHeight = 60;
     const spacing = vWidth * 0.2; // 20% distance from center
 
@@ -470,10 +471,11 @@ function drawImages(vWidth, vHeight) {
     const centerX = vWidth / 2;
     const centerY = vHeight * 0.5; // Vertical center of the canvas
 
+
+    // TODO Change these so that the image will fit correctly on the screen
     // Define how big the images should LOOK on screen (Virtual Pixels)
     const displayWidth = Math.min(300, vWidth * 0.4);
     const displayHeight = displayWidth * (4 / 5); // Maintains 5:4 ratio
-
     // Spacing between the two images
     const spacing = vWidth * 0.1;
 
@@ -513,7 +515,9 @@ function drawImages(vWidth, vHeight) {
 
 function drawPasswords() {
     ctx.save(); // 1. Freeze current settings (Timer font, etc.)
-    const scaleFont = Math.max(14, canvas.width * 0.02);
+
+    // TODO Fix font so that is correct for canva size
+    const scaleFont = Math.max(14, canvas.width * 0.01);
     ctx.font = `bold ${scaleFont}px Arial`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -704,7 +708,7 @@ function roundHelpScreenRect(ctx, x, y, width, height, radius, fill, stroke) {
 
 
 /**
- * Execution Logic Here
+ * TODO - Execution Logic Here
  *
  * Од оваа линија надолу повикување и извршување на функции
  * */
