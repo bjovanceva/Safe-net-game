@@ -222,6 +222,10 @@ function generateNotSafe() {
 //     return true;
 // }
 
+/**
+ * Puts two passwords to be later drawn,NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
+ * of screens having higher DPI so canvas needs to be scaled
+ */
 function spawnTwoPasswords() {
     passwordChoices = [];
     const vWidth = canvas.width / dpr;
@@ -302,7 +306,10 @@ function update() {
         gameRunning = false;
     }
 }
-
+/**
+ * Function that draws everything,NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
+ * of screens having higher DPI so canvas needs to be scaled
+* */
 function draw() {
     // These are your "Game World" dimensions
     const vWidth = canvas.width / dpr;
@@ -326,15 +333,23 @@ function draw() {
         drawImages(vWidth, vHeight);
     }
 
+
+    ctx.save();
+    ctx.font = `bold ${Math.max(16, vWidth * 0.03)}px monospace`;
     // Draw the "Time Remaining" text at the bottom
     const remaining = Math.max(0, Math.ceil(gameDuration - timeElapsed));
     ctx.fillStyle = "#f6f3f3";
     ctx.textAlign = "center";
     ctx.fillText(`Time left: ${remaining}s`, vWidth / 2, vHeight - 20);
+    ctx.restore();
 
     drawInfoButton(vWidth); // Keep this last to stay on top!
 }
 
+/**
+ * Function that draws the Game Over Screen, NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
+ * of screens having higher DPI so canvas needs to be scaled
+* */
 function drawGameOver(vWidth, vHeight) {
     ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, vWidth, vHeight);
@@ -347,6 +362,9 @@ function drawGameOver(vWidth, vHeight) {
     ctx.fillText(`Game Over! Score: ${score}`, vWidth / 2, vHeight / 2);
 }
 
+/** Functions that draw the instruction text, NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
+* of screens having higher DPI so canvas needs to be scaled
+* */
 function drawInstructions(vWidth, vHeight) {
     ctx.fillStyle = "#f6f3f3";
     const scaleFont = Math.max(16, vWidth * 0.025);
@@ -356,6 +374,8 @@ function drawInstructions(vWidth, vHeight) {
     ctx.fillText("Click the SAFER option", vWidth / 2, vHeight * 0.15);
 }
 
+/** Function that draws the Score
+* */
 function drawScore() {
     ctx.fillStyle = "#f6f3f3";
     ctx.font = `bold 18px Arial`;
@@ -363,26 +383,37 @@ function drawScore() {
     ctx.fillText("Score: " + score, 20, 30);
 }
 
+/** Function that draws the circular timer,NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
+* of screens having higher DPI so canvas needs to be scaled
+* */
 function drawTimer(vWidth, vHeight) {
+    ctx.save();
     const centerX = vWidth / 2;
     const centerY = vHeight * 0.35; // Moved up slightly from your fixed 280
     const radius = Math.max(25, vWidth * 0.04);
 
+    ctx.font = `bold ${radius * 0.8}px "Courier New", Courier, monospace`;
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.fillStyle = "#fb0000";
     ctx.fill();
-    ctx.lineWidth = 3;
+    // ctx.lineWidth = 1;
     ctx.strokeStyle = "#ffffff";
     ctx.stroke();
 
+    // ctx.font = `bold 18px Arial`;
     ctx.fillStyle = "#ffffff";
-    ctx.font = `bold ${radius * 0.8}px Arial`;
+
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(Math.ceil(timeLeft), centerX, centerY);
+    // const verticalOffset = radius * 0.05;
+    ctx.fillText(Math.ceil(timeLeft)+"", centerX, centerY);
+    ctx.restore();
 }
 
+/** Function that Draws the info button and also the info dialog,NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
+* of screens having higher DPI so canvas needs to be scaled
+* */
 function drawInfoButton(vWidth) {
     if (!info.visible) return;
 
@@ -435,38 +466,53 @@ function drawInfoButton(vWidth) {
     }
 }
 
-function drawImages() {
-    const centerX = canvas.width / 2;
-    const y = canvas.height * 0.5; // vertical center
-    const spacing = Math.min(260, canvas.width / 2 - 40);
+function drawImages(vWidth, vHeight) {
+    const centerX = vWidth / 2;
+    const centerY = vHeight * 0.5; // Vertical center of the canvas
+
+    // Define how big the images should LOOK on screen (Virtual Pixels)
+    const displayWidth = Math.min(300, vWidth * 0.4);
+    const displayHeight = displayWidth * (4 / 5); // Maintains 5:4 ratio
+
+    // Spacing between the two images
+    const spacing = vWidth * 0.1;
 
     currentImages.forEach((img, index) => {
-        if (!img.complete) return;
+        // Calculate X position: one to the left, one to the right
+        const x = (index === 0)
+            ? centerX - spacing - displayWidth
+            : centerX + spacing;
 
+        const y = centerY - (displayHeight / 2);
 
-        let imgWidth = img.naturalWidth;
-        let imgHeight = img.naturalHeight;
+        img.hitbox = { x, y, w: displayWidth, h: displayHeight };
 
-        const maxWidth = canvas.width / 2 - 40;
-        const maxHeight = canvas.height * 0.5;
-        const scale = Math.min(maxWidth / imgWidth, maxHeight / imgHeight, 1);
+        // 1. Draw a "Cyber" Frame first
+        ctx.strokeStyle = "#00f2ff";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x - 5, y - 5, displayWidth + 10, displayHeight + 10);
 
-        imgWidth *= scale;
-        imgHeight *= scale;
+        // 2. Draw the Image
+        // drawImage(image, x, y, width, height) automatically scales
+        // any image size down/up to fit your displayWidth/Height
+        if (img.complete) {
+            ctx.drawImage(img, x, y, displayWidth, displayHeight);
+        } else {
+            // Placeholder if image is still loading
+            ctx.fillStyle = "#1e293b";
+            ctx.fillRect(x, y, displayWidth, displayHeight);
+        }
 
-
-        const x = index === 0
-            ? centerX - spacing - imgWidth / 2
-            : centerX + spacing - imgWidth / 2;
-        const drawY = y - imgHeight / 2;
-
-        ctx.globalAlpha = 0.9;
-        ctx.drawImage(img, x, drawY, imgWidth, imgHeight);
-        ctx.globalAlpha = 1;
+        // Save these coordinates for the click listener
+        img.renderX = x;
+        img.renderY = y;
+        img.renderW = displayWidth;
+        img.renderH = displayHeight;
     });
 }
 
 function drawPasswords() {
+    ctx.save(); // 1. Freeze current settings (Timer font, etc.)
     const scaleFont = Math.max(14, canvas.width * 0.02);
     ctx.font = `bold ${scaleFont}px Arial`;
     ctx.textAlign = "center";
@@ -500,6 +546,8 @@ function drawPasswords() {
         ctx.fillText(pw.text, pw.x + pw.width / 2, pw.y + pw.height / 2);
 
     });
+
+    ctx.restore();
 }
 
 function gameLoop() {
@@ -654,10 +702,6 @@ function roundHelpScreenRect(ctx, x, y, width, height, radius, fill, stroke) {
 // }
 
 
-// Add these variables to your global scope
-const drops = [];
-const fontSize = 16;
-
 
 /**
  * Execution Logic Here
@@ -673,8 +717,9 @@ window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
 startBtn.addEventListener("click", () => {
-    startScreen.style.display = "none";
-    canvas.style.display = "block";
+    startScreen.style.display = 'none';
+    document.getElementById('game-wrapper').style.display = 'flex';
+    canvas.style.display = 'block';
     startGame();
 });
 
@@ -695,30 +740,29 @@ canvas.addEventListener("click", (e) => {
             }
         });
     } else if (currentRoundMode === "images") {
-        currentImages.forEach((img, index) => {
+        currentImages.forEach((img) => {
             // We use the same centering math used in drawImages
-            const vWidth = canvas.width / dpr;
-            const vHeight = canvas.height / dpr;
-            const centerX = vWidth / 2;
-            const spacing = Math.min(260, vWidth / 2 - 40);
-
-            const imgWidth = 200; // Match your draw size
-            const imgHeight = 150;
-            const x = index === 0 ? centerX - spacing - 100 : centerX + spacing - 100;
-            const y = vHeight * 0.5 - 75;
-
-            if (mouseX >= x && mouseX <= x + imgWidth && mouseY >= y && mouseY <= y + imgHeight) {
+            // const vWidth = canvas.width / dpr;
+            // const vHeight = canvas.height / dpr;
+            // const centerX = vWidth / 2;
+            // const spacing = Math.min(260, vWidth / 2 - 40);
+            //
+            // const imgWidth = 200; // Match your draw size
+            // const imgHeight = 150;
+            // const x = index === 0 ? centerX - spacing - 100 : centerX + spacing - 100;
+            // const y = vHeight * 0.5 - 75;
+            //
+            // if (mouseX >= x && mouseX <= x + imgWidth && mouseY >= y && mouseY <= y + imgHeight) {
+            //     handleImageChoice(img);
+            // }
+            if (img.hitbox &&
+                mouseX >= img.hitbox.x && mouseX <= img.hitbox.x + img.hitbox.w &&
+                mouseY >= img.hitbox.y && mouseY <= img.hitbox.y + img.hitbox.h) {
                 handleImageChoice(img);
             }
         });
     }
 });
-
-
-
-
-
-
 
 
 
