@@ -4,10 +4,11 @@ body {
     background: #0f172a;
     color: white;
     text-align: center;
+    font-size: 100%; /* base font size for scaling */
 }
 
-
 #start-screen {
+    z-index: 1;
     position: absolute;
     width: 100%;
     height: 100%;
@@ -16,30 +17,72 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    padding: 2%;
+    box-sizing: border-box;
 }
 
 #start-screen h1 {
-    font-size: 3rem;
-    margin-bottom: 10px;
+    font-size: 6vw; /* responsive to screen width */
+    margin-bottom: 1%;
 }
 
 #start-screen p {
-    font-size: 1.2rem;
-    margin-bottom: 30px;
+    font-size: 2.5vw;
+    margin-bottom: 3%;
 }
 
 #start-btn {
-    padding: 15px 40px;
-    font-size: 1.2rem;
+    padding: 1.5% 5%;
+    font-size: 2.5vw;
     background: #22c55e;
     border: none;
-    border-radius: 8px;
+    border-radius: 1%;
     cursor: pointer;
+    transition: background 0.3s ease;
 }
 
 #start-btn:hover {
     background: #16a34a;
 }
+
+#top-area {
+    width: 100%;
+    height: 8vh; /* Fixed height relative to screen */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#top-area-text {
+    margin: 0;
+    color: #00f2ff;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 5vh; /* Scales with phone height */
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+}
+
+#game-title{
+    color: #00f2ff;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 5vh; /* Scales with phone height */
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+}
+
+canvas {
+    display: none;
+    margin: 0 auto;
+    background: #020617;
+    border-radius: 1%;
+    width: 90%;
+    height: 60%; /* can adjust as needed, relative to parent */
+}
+
 
 /*.firework {*/
 /*    position: absolute;*/
@@ -61,10 +104,25 @@ body {
 /*    }*/
 /*}*/
 
+/*#game-wrapper{*/
+/*    display: flex;*/
+/*    justify-content: center;*/
+/*}*/
 
-canvas {
-    display: none;
-    background: #020617;
-    margin-top: 74px;
-    margin-left: 300px;
+#start-overlay{
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 120vh;
+    height: 80vh;
+    background: radial-gradient(circle, rgba(0, 242, 255, 0.12) 0%, transparent 60%);
+    z-index: -1;
+    animation: pulseGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes pulseGlow {
+    from { opacity: 0.4; transform: translate(-50%, -50%) scale(0.9); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
 }
