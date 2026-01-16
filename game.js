@@ -28,6 +28,15 @@ let gameDuration = 20;
 let timeElapsed = 0;
 let gameEnded = false;
 
+
+let gamePhase = "playing"; // playing | success | retryPrompt | bonusRound | finalGameOver
+
+let phaseTimer = 0;
+
+let bonusQuestionsAnswered = 0;
+let bonusScore = 0;
+let minScore = 10
+
 const info = {
     x: canvas.width - 40,
     y: 40,
@@ -294,18 +303,43 @@ function update() {
     const delta = (now - lastTime) / 1000;
     lastTime = now;
 
-    timeLeft -= delta;
-    timeElapsed += delta;
+    if (gamePhase === "playing" || gamePhase === "bonusRound") {
+        timeLeft -= delta;
+        timeElapsed += delta;
 
-    if (timeLeft <= 0) {
-        startNewRound();
+        if (timeLeft <= 0) {
+            startNewRound();
+        }
+
+        if (timeElapsed >= gameDuration) {
+            if (score >= minScore) {
+                gamePhase = "success";
+                phaseTimer = 3;
+                minScore += 10;
+            } else {
+                gamePhase = "retryPrompt";
+            }
+        }
     }
 
+    if (gamePhase === "success") {
+        phaseTimer -= delta;
 
-    if (timeElapsed >= gameDuration) {
-        gameEnded = true;
-        gameRunning = false;
+        if (phaseTimer <= 0) {
+            resetMainGame();
+        }
     }
+}
+
+
+function resetMainGame() {
+    score = 0;
+    timeElapsed = 0;
+    gameRunning = true;
+    gamePhase = "playing";
+    startNewRound();
+    lastTime = Date.now();
+    gameLoop();
 }
 /**
  * Function that draws everything,NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
@@ -318,8 +352,28 @@ function draw() {
 
     ctx.clearRect(0, 0, vWidth, vHeight);
 
-    if (gameEnded) {
+    // if (gameEnded) {
+    //     drawGameOver(vWidth, vHeight);
+    //     return;
+    // }
+
+    if (gamePhase === "success") {
+        drawSuccessScreen(vWidth, vHeight);
+        return;
+    }
+
+    if (gamePhase === "retryPrompt") {
+        drawRetryPrompt(vWidth, vHeight);
+        return;
+    }
+
+    if (gamePhase === "finalGameOver") {
         drawGameOver(vWidth, vHeight);
+        return;
+    }
+
+    if (gamePhase === "bonusRound") {
+        drawBonusRound(vWidth, vHeight);
         return;
     }
 
@@ -346,6 +400,119 @@ function draw() {
 
     drawInfoButton(vWidth); // Keep this last to stay on top!
 }
+
+function drawSuccessScreen(vWidth, vHeight) {
+
+    const gradient = ctx.createLinearGradient(0, 0, 0, vHeight);
+    gradient.addColorStop(0, "#020617");
+    gradient.addColorStop(1, "#020617");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, vWidth, vHeight);
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+
+    const cx = vWidth / 2;
+    const cy = vHeight * 0.4;
+    const r = vWidth * 0.06;
+
+    ctx.strokeStyle = "#22c55e";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+
+
+    ctx.strokeStyle = "#22c55e";
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.4, cy);
+    ctx.lineTo(cx - r * 0.1, cy + r * 0.3);
+    ctx.lineTo(cx + r * 0.45, cy - r * 0.35);
+    ctx.stroke();
+
+
+    ctx.fillStyle = "#22c55e";
+    ctx.font = `bold ${vWidth * 0.05}px Arial`;
+    ctx.fillText(
+        "Well done!",
+        vWidth / 2,
+        vHeight * 0.55
+    );
+
+
+    ctx.fillStyle = "#e5e7eb";
+    ctx.font = `${vWidth * 0.028}px Arial`;
+    ctx.fillText(
+        "Continue with the same energy",
+        vWidth / 2,
+        vHeight * 0.62
+    );
+}
+
+function drawRetryPrompt(vWidth, vHeight) {
+
+    ctx.fillStyle = "#020617";
+    ctx.fillRect(0, 0, vWidth, vHeight);
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+
+    ctx.fillStyle = "#facc15"; // warning / chance color
+    ctx.font = `bold ${vWidth * 0.055}px Arial`;
+    ctx.fillText(
+        "One Last Chance",
+        vWidth / 2,
+        vHeight * 0.32
+    );
+
+
+    ctx.strokeStyle = "#1e293b";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(vWidth * 0.35, vHeight * 0.38);
+    ctx.lineTo(vWidth * 0.65, vHeight * 0.38);
+    ctx.stroke();
+
+
+    ctx.fillStyle = "#cbd5f5";
+    ctx.font = `${vWidth * 0.03}px Arial`;
+    ctx.fillText(
+        "You can continue the game once more.",
+        vWidth / 2,
+        vHeight * 0.44
+    );
+
+
+    drawButton(
+        "Try Again", vWidth / 2 - 160, vHeight * 0.56, 150, 52, true
+    );
+
+    drawButton(
+        "Quit", vWidth / 2 + 10, vHeight * 0.56, 150, 52, false
+    );
+}
+
+function drawButton(text, x, y, w, h, primary) {
+    ctx.fillStyle = primary ? "#22c55e" : "#334155";
+    ctx.fillRect(x, y, w, h);
+
+
+    ctx.strokeStyle = primary ? "#86efac" : "#64748b";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+
+    ctx.fillStyle = "#f8fafc";
+    ctx.font = "bold 18px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x + w / 2, y + h / 2);
+}
+
+
 
 /**
  * Function that draws the Game Over Screen, NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
@@ -398,16 +565,15 @@ function drawTimer(vWidth, vHeight) {
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.fillStyle = "#fb0000";
     ctx.fill();
-    // ctx.lineWidth = 1;
+
     ctx.strokeStyle = "#ffffff";
     ctx.stroke();
 
-    // ctx.font = `bold 18px Arial`;
+
     ctx.fillStyle = "#ffffff";
 
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    // const verticalOffset = radius * 0.05;
     ctx.fillText(Math.ceil(timeLeft)+"", centerX, centerY);
     ctx.restore();
 }
@@ -418,7 +584,7 @@ function drawTimer(vWidth, vHeight) {
 function drawInfoButton(vWidth) {
     if (!info.visible) return;
 
-    // Reset shadow for the button
+
     ctx.shadowColor = "rgba(0,0,0,0.5)";
     ctx.shadowBlur = 8;
 
@@ -445,7 +611,7 @@ function drawInfoButton(vWidth) {
         const lineHeight = 13;
         const tooltipHeight = lines.length * lineHeight + padding * 2;
 
-        // Ensure tooltip doesn't go off the right edge
+
         let tooltipX = info.x - tooltipWidth;
         let tooltipY = info.y + 20;
 
@@ -453,7 +619,7 @@ function drawInfoButton(vWidth) {
         ctx.strokeStyle = "#475569";
         ctx.lineWidth = 2;
 
-        // Using your existing rounded rect function
+
         roundHelpScreenRect(ctx, tooltipX, tooltipY, tooltipWidth, tooltipHeight, 10, true, true);
 
         const scaleFont = Math.min(14, vWidth * 0.015);
@@ -562,6 +728,24 @@ function gameLoop() {
 }
 
 function handlePasswordChoice(text) {
+
+    if (gamePhase === "bonusRound") {
+        bonusQuestionsAnswered++;
+
+        if (reallySafePasswords.includes(text)) bonusScore += 1;
+
+        if (bonusQuestionsAnswered >= 5) {
+            if (bonusScore >= 3) {
+                resetMainGame();
+            } else {
+                gamePhase = "finalGameOver";
+            }
+        } else {
+            spawnTwoPasswords();
+        }
+        return;
+    }
+
     if (reallySafePasswords.includes(text)) {
         score += 2;
     } else if (safePasswords.includes(text)) {
@@ -570,6 +754,19 @@ function handlePasswordChoice(text) {
         score -= 1;
     }
     startNewRound();
+}
+
+function drawBonusRound(vWidth, vHeight) {
+    drawInstructions(vWidth, vHeight);
+    drawPasswords(vWidth, vHeight);
+
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "center";
+    ctx.fillText(
+        `Bonus round: ${bonusQuestionsAnswered}/5`,
+        vWidth / 2,
+        vHeight * 0.85
+    );
 }
 
 function handleImageChoice(img) {
@@ -727,48 +924,153 @@ startBtn.addEventListener("click", () => {
     startGame();
 });
 
+// canvas.addEventListener("click", (e) => {
+//     const rect = canvas.getBoundingClientRect();
+//     const mouseX = e.clientX - rect.left;
+//     const mouseY = e.clientY - rect.top;
+//
+//     if (gamePhase === "retryPrompt") {
+//         if (isInside(mouseX, mouseY, vWidth / 2 - 150, vHeight * 0.55, 130, 50)) {
+//             startBonusRound();
+//         }
+//         if (isInside(mouseX, mouseY, vWidth / 2 + 20, vHeight * 0.55, 130, 50)) {
+//             gamePhase = "finalGameOver";
+//         }
+//         return;
+//     }
+//
+//     if (currentRoundMode === "passwords") {
+//         passwordChoices.forEach(pw => {
+//             if (
+//                 mouseX >= pw.x &&
+//                 mouseX <= pw.x + pw.width &&
+//                 mouseY >= pw.y &&
+//                 mouseY <= pw.y + pw.height
+//             ) {
+//                 handlePasswordChoice(pw.text);
+//             }
+//         });
+//     } else if (currentRoundMode === "images") {
+//         currentImages.forEach((img) => {
+//             // We use the same centering math used in drawImages
+//             // const vWidth = canvas.width / dpr;
+//             // const vHeight = canvas.height / dpr;
+//             // const centerX = vWidth / 2;
+//             // const spacing = Math.min(260, vWidth / 2 - 40);
+//             //
+//             // const imgWidth = 200; // Match your draw size
+//             // const imgHeight = 150;
+//             // const x = index === 0 ? centerX - spacing - 100 : centerX + spacing - 100;
+//             // const y = vHeight * 0.5 - 75;
+//             //
+//             // if (mouseX >= x && mouseX <= x + imgWidth && mouseY >= y && mouseY <= y + imgHeight) {
+//             //     handleImageChoice(img);
+//             // }
+//             if (img.hitbox &&
+//                 mouseX >= img.hitbox.x && mouseX <= img.hitbox.x + img.hitbox.w &&
+//                 mouseY >= img.hitbox.y && mouseY <= img.hitbox.y + img.hitbox.h) {
+//                 handleImageChoice(img);
+//             }
+//         });
+//     }
+// });
+
+// canvas.addEventListener("click", (e) => {
+//     const rect = canvas.getBoundingClientRect();
+//     const mouseX = e.clientX - rect.left;
+//     const mouseY = e.clientY - rect.top;
+//
+//     const vWidth = canvas.width;
+//     const vHeight = canvas.height;
+//
+//
+//     if (gamePhase === "retryPrompt") {
+//         console.log('retry prompt')
+//         if (isInside(mouseX, mouseY, vWidth / 2 - 150, vHeight * 0.55, 130, 50)) {
+//             startBonusRound();
+//         }
+//
+//         if (isInside(mouseX, mouseY, vWidth / 2 + 20, vHeight * 0.55, 130, 50)) {
+//             gamePhase = "finalGameOver";
+//         }
+//         return;
+//     }
+//
+//     if (currentRoundMode === "passwords") {
+//         passwordChoices.forEach(pw => {
+//             if (
+//                 mouseX >= pw.x &&
+//                 mouseX <= pw.x + pw.width &&
+//                 mouseY >= pw.y &&
+//                 mouseY <= pw.y + pw.height
+//             ) {
+//                 handlePasswordChoice(pw.text);
+//             }
+//         });
+//     }
+//
+//
+//     else if (currentRoundMode === "images") {
+//         currentImages.forEach(img => {
+//             if (img.hitbox &&
+//                 mouseX >= img.hitbox.x && mouseX <= img.hitbox.x + img.hitbox.w &&
+//                 mouseY >= img.hitbox.y && mouseY <= img.hitbox.y + img.hitbox.h) {
+//                 handleImageChoice(img);
+//             }
+//         });
+//     }
+// });
+
 canvas.addEventListener("click", (e) => {
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
+    const vWidth = canvas.width / dpr;
+    const vHeight = canvas.height / dpr;
+
+    if (gamePhase === "retryPrompt") {
+
+        if (isInside(mouseX, mouseY, vWidth / 2 - 160, vHeight * 0.56, 150, 52)) {
+            //to do
+            console.log('try again clicked')
+            startBonusRound();
+            return;
+        }
+
+        if (isInside(mouseX, mouseY, vWidth / 2 + 10, vHeight * 0.56, 150, 52)) {
+            // gamePhase = "finalGameOver";
+            resetMainGame();
+            return;
+        }
+    }
+
     if (currentRoundMode === "passwords") {
         passwordChoices.forEach(pw => {
-            if (
-                mouseX >= pw.x &&
-                mouseX <= pw.x + pw.width &&
-                mouseY >= pw.y &&
-                mouseY <= pw.y + pw.height
-            ) {
+            if (isInside(mouseX, mouseY, pw.x, pw.y, pw.width, pw.height)) {
                 handlePasswordChoice(pw.text);
             }
         });
     } else if (currentRoundMode === "images") {
-        currentImages.forEach((img) => {
-            // We use the same centering math used in drawImages
-            // const vWidth = canvas.width / dpr;
-            // const vHeight = canvas.height / dpr;
-            // const centerX = vWidth / 2;
-            // const spacing = Math.min(260, vWidth / 2 - 40);
-            //
-            // const imgWidth = 200; // Match your draw size
-            // const imgHeight = 150;
-            // const x = index === 0 ? centerX - spacing - 100 : centerX + spacing - 100;
-            // const y = vHeight * 0.5 - 75;
-            //
-            // if (mouseX >= x && mouseX <= x + imgWidth && mouseY >= y && mouseY <= y + imgHeight) {
-            //     handleImageChoice(img);
-            // }
-            if (img.hitbox &&
-                mouseX >= img.hitbox.x && mouseX <= img.hitbox.x + img.hitbox.w &&
-                mouseY >= img.hitbox.y && mouseY <= img.hitbox.y + img.hitbox.h) {
+        currentImages.forEach(img => {
+            if (img.hitbox && isInside(mouseX, mouseY, img.hitbox.x, img.hitbox.y, img.hitbox.w, img.hitbox.h)) {
                 handleImageChoice(img);
             }
         });
     }
 });
 
+function isInside(mx, my, x, y, w, h) {
+    return mx >= x && mx <= x + w && my >= y && my <= y + h;
+}
 
+
+function startBonusRound() {
+    bonusQuestionsAnswered = 0;
+    bonusScore = 0;
+    gamePhase = "bonusRound";
+    spawnTwoPasswords(); // reuse logic
+}
 
 canvas.addEventListener("mousemove", (e) => {
     const rect = canvas.getBoundingClientRect();
