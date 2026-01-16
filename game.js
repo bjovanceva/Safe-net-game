@@ -4,6 +4,9 @@
  * Од оваа линија надолу дефинирање на константи
  * */
 
+
+import questions from "./questions.js";
+
 const startScreen = document.getElementById("start-screen");
 const startBtn = document.getElementById("start-btn");
 const canvas = document.getElementById("gameCanvas");
@@ -34,8 +37,20 @@ let gamePhase = "playing"; // playing | success | retryPrompt | bonusRound | fin
 let phaseTimer = 0;
 
 let bonusQuestionsAnswered = 0;
+let bonusIndex = 0;
 let bonusScore = 0;
+let selectedOption = null;
+let bonusActive = true;
 let minScore = 10
+
+const bonusQuestions = questions
+
+function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+}
 
 const info = {
     x: canvas.width - 40,
@@ -303,9 +318,16 @@ function update() {
     const delta = (now - lastTime) / 1000;
     lastTime = now;
 
-    if (gamePhase === "playing" || gamePhase === "bonusRound") {
+    if(gamePhase === "bonusRound"){
+        minScore+=10;
+        return;
+    }
+
+    if (gamePhase === "playing") {
         timeLeft -= delta;
         timeElapsed += delta;
+
+
 
         if (timeLeft <= 0) {
             startNewRound();
@@ -356,6 +378,8 @@ function draw() {
     //     return;
     // }
 
+    console.log(gamePhase)
+
     if (gamePhase === "success") {
         drawSuccessScreen(vWidth, vHeight);
         return;
@@ -372,6 +396,7 @@ function draw() {
     }
 
     if (gamePhase === "bonusRound") {
+        console.log('draw() - (gamePhase === "bonusRound")')
         drawBonusRound(vWidth, vHeight);
         return;
     }
@@ -755,24 +780,79 @@ function handlePasswordChoice(text) {
     startNewRound();
 }
 
-function drawBonusRound(vWidth, vHeight) {
-    drawInstructions(vWidth, vHeight);
-    drawPasswords(vWidth, vHeight);
 
-    ctx.fillStyle = "#fff";
+function drawBonusRound(vWidth, vHeight) {
+
+    const q = bonusQuestions[bonusIndex];
+    console.log('new question')
+
+    ctx.clearRect(0, 0, vWidth, vHeight);
+
+    ctx.fillStyle = "#e0f2fe";
     ctx.textAlign = "center";
+    ctx.font = `bold ${Math.max(22, vWidth * 0.04)}px Arial`;
+    ctx.fillText(`Bonus Question ${bonusIndex + 1} / 5`, vWidth / 2, 60);
+
+    const cardWidth = Math.min(620, vWidth * 0.9);
+    const cardHeight = 120;
+    const cardX = (vWidth - cardWidth) / 2;
+    const cardY = 90;
+
+
+    // ctx.fillStyle = "#0ea5e9"; // blue
+    // roundRect(cardX, cardY, cardWidth, cardHeight, 16, true, false);
+
+
+    ctx.strokeStyle = "#7dd3fc";
+    ctx.lineWidth = 3;
+    roundRect(cardX, cardY, cardWidth, cardHeight, 16, false, true);
+
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `bold ${Math.max(18, vWidth * 0.03)}px Arial`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     ctx.fillText(
-        `Bonus round: ${bonusQuestionsAnswered}/5`,
+        q.question,
         vWidth / 2,
-        vHeight * 0.85
+        cardY + cardHeight / 2
     );
+
+    const optionWidth = Math.min(520, vWidth * 0.85);
+    const optionHeight = 54;
+    const startY = cardY + cardHeight + 40;
+
+    q.options.forEach((opt, i) => {
+        const x = (vWidth - optionWidth) / 2;
+        const y = startY + i * (optionHeight + 16);
+
+        // Background
+        ctx.fillStyle =
+            selectedOption === i ? "#22c55e" : "#1e293b";
+        roundRect(x, y, optionWidth, optionHeight, 12, true, false);
+
+        // Border
+        ctx.strokeStyle = "#64748b";
+        ctx.lineWidth = 2;
+        roundRect(x, y, optionWidth, optionHeight, 12, false, true);
+
+        // Option text
+        ctx.fillStyle = "#f8fafc";
+        ctx.font = `bold ${Math.max(16, vWidth * 0.025)}px Arial`;
+        ctx.fillText(opt, vWidth / 2, y + optionHeight / 2);
+    });
+
+    /* ---------- SCORE ---------- */
+    ctx.fillStyle = "#cbd5f5";
+    ctx.font = `bold ${Math.max(16, vWidth * 0.025)}px Arial`;
+    ctx.fillText(`Score: ${bonusScore}`, vWidth / 2, vHeight - 30);
 }
 
 function handleImageChoice(img) {
     if (safeImages.includes(img)) {
-        score += 2; // safe image
+        score += 2;
     } else {
-        score += 0; // unsafe image
+        score -= 1;
     }
     startNewRound();
 }
@@ -1021,7 +1101,55 @@ startBtn.addEventListener("click", () => {
 // });
 
 canvas.addEventListener("click", (e) => {
+
+    // if (!bonusActive) return;
+
+    // const rect = canvas.getBoundingClientRect();
+    // const mx = e.clientX - rect.left;
+    // const my = e.clientY - rect.top;
+    //
+    // bonusQuestions[bonusIndex].options.forEach((_, i) => {
+    //     const y = 220 + i * 70;
+    //     const x = canvas.width / 2 - 220;
+    //
+    //     if (
+    //         mx > x &&
+    //         mx < x + 440 &&
+    //         my > y - 30 &&
+    //         my < y + 20
+    //     ) {
+    //         handleBonusAnswer(i);
+    //     }
+    // });
+
     const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const cardHeight = 120;
+    const cardY = 90;
+
+    const optionWidth = Math.min(520, canvas.width * 0.85);
+    const optionHeight = 54;
+    const optionGap = 16;
+
+    const startY = cardY + cardHeight + 40;
+    const optionX = (canvas.width - optionWidth) / 2;
+
+    bonusQuestions[bonusIndex].options.forEach((_, i) => {
+        const optionY = startY + i * (optionHeight + optionGap);
+
+        if (
+            mx >= optionX &&
+            mx <= optionX + optionWidth &&
+            my >= optionY &&
+            my <= optionY + optionHeight
+        ) {
+            handleBonusAnswer(i);
+        }
+    });
+
+
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
@@ -1065,11 +1193,43 @@ function isInside(mx, my, x, y, w, h) {
 }
 
 
+function handleBonusAnswer(index) {
+    selectedOption = index;
+
+    const correct = bonusQuestions[bonusIndex].correctIndex;
+    if (index === correct) bonusScore++;
+
+    setTimeout(() => {
+        selectedOption = null;
+        bonusIndex++;
+
+        if (bonusIndex === 5) {
+            endBonusRound();
+        }
+    }, 600);
+}
+
+function endBonusRound() {
+    bonusActive = false;
+
+    if (bonusScore >= 3) {
+        resetMainGame();
+    } else {
+        gamePhase = "finalGameOver";
+    }
+}
+
 function startBonusRound() {
-    bonusQuestionsAnswered = 0;
+    shuffleArray(bonusQuestions);
+    bonusIndex = 0;
     bonusScore = 0;
+    selectedOption = null;
+    bonusActive = true;
+
+    console.log('startBonusRound()')
+
     gamePhase = "bonusRound";
-    spawnTwoPasswords(); // reuse logic
+    timeLeft = Infinity;
 }
 
 canvas.addEventListener("mousemove", (e) => {
