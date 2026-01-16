@@ -333,7 +333,6 @@ function update() {
 
 
 function resetMainGame() {
-    score = 0;
     timeElapsed = 0;
     gameRunning = true;
     gamePhase = "playing";
@@ -1040,6 +1039,7 @@ canvas.addEventListener("click", (e) => {
 
         if (isInside(mouseX, mouseY, vWidth / 2 + 10, vHeight * 0.56, 150, 52)) {
             // gamePhase = "finalGameOver";
+            score = 0;
             resetMainGame();
             return;
         }
