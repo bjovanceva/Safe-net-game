@@ -14,6 +14,13 @@ const ctx = canvas.getContext("2d");
 
 const dpr = window.devicePixelRatio || 1;
 
+const SCORE_FONT_SIZE = 18
+const PASSWORDS_FONT_SIZE = 18
+const TOTAL_TIMER_FONT_SIZE = 18
+const TIMER_RADIUS_SIZE = 25
+const INFO_BUTTON_RADIUS_SIZE = 18
+const INSTRUCTION_TEXT_FONT_SIZE = 20
+
 let score = 0;
 let gameRunning = false;
 let passwordChoices = [];
@@ -169,8 +176,31 @@ function resizeCanvas() {
     topArea.style.height = "10vh"; // Use vh for consistency
 
     // TODO Change these to percentages,used for help button center
-    info.x = displayWidth - 30;
-    info.y = 30;
+    info.x = displayWidth - (displayWidth / 30);
+    info.y = (displayWidth / 30);
+    info.radius = INFO_BUTTON_RADIUS_SIZE / ( 900 / displayWidth )
+
+
+    const vWidth = canvas.width / dpr;
+    const vHeight = canvas.height / dpr;
+    const {boxWidth, boxHeight, spacing} = getPasswordBoxDimensions(vWidth, vHeight);
+
+    const [p1, p2] = passwordChoices
+
+    if (p1 !== undefined) {
+        p1.x = (vWidth / 2) - spacing - (boxWidth / 2)
+        p1.y = vHeight * 0.5
+        p1.width = boxWidth
+        p1.height = boxHeight
+    }
+    if (p2 !== undefined) {
+        p2.x = (vWidth / 2) + spacing - (boxWidth / 2)
+        p2.y = vHeight * 0.5
+        p2.width = boxWidth
+        p2.height = boxHeight
+    }
+
+    draw()
 }
 
 function startGame() {
@@ -246,6 +276,14 @@ function generateNotSafe() {
 //     return true;
 // }
 
+
+function getPasswordBoxDimensions(vWidth, vHeight) {
+    const boxWidth = vWidth / 5
+    const boxHeight = vHeight / 10;
+    const spacing = vWidth * 0.2; // 20% distance from center
+    return {boxWidth, boxHeight, spacing};
+}
+
 /**
  * Puts two passwords to be later drawn,NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
  * of screens having higher DPI so canvas needs to be scaled
@@ -258,12 +296,12 @@ function spawnTwoPasswords() {
     const generators = [generateReallySafe, generateSafe, generateNotSafe];
     const firstIndex = Math.floor(Math.random() * generators.length);
     let secondIndex;
-    do { secondIndex = Math.floor(Math.random() * generators.length); } while (secondIndex === firstIndex);
+    do {
+        secondIndex = Math.floor(Math.random() * generators.length);
+    } while (secondIndex === firstIndex);
 
     //TODO Change these so that the password box is always fit good for the text needed
-    const boxWidth = Math.max(180, vWidth * 0.25);
-    const boxHeight = 60;
-    const spacing = vWidth * 0.2; // 20% distance from center
+    const {boxWidth, boxHeight, spacing} = getPasswordBoxDimensions(vWidth, vHeight);
 
     passwordChoices.push({
         text: generators[firstIndex](),
@@ -362,6 +400,21 @@ function resetMainGame() {
     lastTime = Date.now();
     gameLoop();
 }
+
+function drawTotalTimer(vWidth, vHeight,aspect_size) {
+
+    const font_size = Math.round(TOTAL_TIMER_FONT_SIZE / aspect_size)
+
+    ctx.save();
+    ctx.font = `bold ${font_size}px monospace`;
+    // Draw the "Time Remaining" text at the bottom
+    const remaining = Math.max(0, Math.ceil(gameDuration - timeElapsed));
+    ctx.fillStyle = "#f6f3f3";
+    ctx.textAlign = "center";
+    ctx.fillText(`Time left: ${remaining}s`, vWidth / 2, vHeight - 20);
+    ctx.restore();
+}
+
 /**
  * Function that draws everything,NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
  * of screens having higher DPI so canvas needs to be scaled
@@ -370,6 +423,8 @@ function draw() {
     // These are your "Game World" dimensions
     const vWidth = canvas.width / dpr;
     const vHeight = canvas.height / dpr;
+
+    const aspect_size = (900 / vWidth)
 
     ctx.clearRect(0, 0, vWidth, vHeight);
 
@@ -402,27 +457,19 @@ function draw() {
     }
 
     // Pass the virtual sizes down to the helpers
-    drawInstructions(vWidth, vHeight);
-    drawScore();
-    drawTimer(vWidth, vHeight);
+    drawInstructions(vWidth, vHeight,aspect_size);
+    drawScore(vWidth,aspect_size);
+    drawTimer(vWidth, vHeight,aspect_size);
 
     if (currentRoundMode === "passwords") {
-        drawPasswords(vWidth, vHeight);
+        drawPasswords(vWidth, vHeight,aspect_size);
     } else if (currentRoundMode === "images") {
-        drawImages(vWidth, vHeight);
+        drawImages(vWidth, vHeight,aspect_size);
     }
 
+    drawTotalTimer(vWidth, vHeight,aspect_size);
 
-    ctx.save();
-    ctx.font = `bold ${Math.max(16, vWidth * 0.03)}px monospace`;
-    // Draw the "Time Remaining" text at the bottom
-    const remaining = Math.max(0, Math.ceil(gameDuration - timeElapsed));
-    ctx.fillStyle = "#f6f3f3";
-    ctx.textAlign = "center";
-    ctx.fillText(`Time left: ${remaining}s`, vWidth / 2, vHeight - 20);
-    ctx.restore();
-
-    drawInfoButton(vWidth); // Keep this last to stay on top!
+    drawInfoButton(vWidth,aspect_size); // Keep this last to stay on top!
 }
 
 function drawSuccessScreen(vWidth, vHeight) {
@@ -536,12 +583,10 @@ function drawButton(text, x, y, w, h, primary) {
     ctx.fillText(text, x + w / 2, y + h / 2);
 }
 
-
-
 /**
  * Function that draws the Game Over Screen, NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
  * of screens having higher DPI so canvas needs to be scaled
-* */
+ * */
 function drawGameOver(vWidth, vHeight) {
     ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, vWidth, vHeight);
@@ -555,11 +600,12 @@ function drawGameOver(vWidth, vHeight) {
 }
 
 /** Functions that draw the instruction text, NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
-* of screens having higher DPI so canvas needs to be scaled
-* */
-function drawInstructions(vWidth, vHeight) {
+ * of screens having higher DPI so canvas needs to be scaled
+ * */
+function drawInstructions(vWidth, vHeight,aspect_size) {
+
     ctx.fillStyle = "#f6f3f3";
-    const scaleFont = Math.max(16, vWidth * 0.025);
+    const scaleFont = Math.round(INSTRUCTION_TEXT_FONT_SIZE / aspect_size)
     ctx.font = `bold ${scaleFont}px Arial`;
     ctx.textAlign = "center";
     // Positioned relative to top (15% down)
@@ -567,22 +613,28 @@ function drawInstructions(vWidth, vHeight) {
 }
 
 /** Function that draws the Score
-* */
-function drawScore() {
+ * */
+function drawScore(vWidth,aspect_size) {
+
+    let font_size = Math.round(SCORE_FONT_SIZE / aspect_size)
     ctx.fillStyle = "#f6f3f3";
-    ctx.font = `bold 18px Arial`;
+    ctx.font = `bold ${font_size}px Arial`;
     ctx.textAlign = "left";
-    ctx.fillText("Score: " + score, 20, 30);
+
+    const text_x = 20 / aspect_size
+    const text_y = 30 / aspect_size
+    ctx.fillText("Score: " + score, text_x, text_y);
 }
 
 /** Function that draws the circular timer,NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
-* of screens having higher DPI so canvas needs to be scaled
-* */
-function drawTimer(vWidth, vHeight) {
+ * of screens having higher DPI so canvas needs to be scaled
+ * */
+function drawTimer(vWidth, vHeight,aspect_size) {
+
     ctx.save();
     const centerX = vWidth / 2;
     const centerY = vHeight * 0.35; // Moved up slightly from your fixed 280
-    const radius = Math.max(25, vWidth * 0.04);
+    const radius = Math.round(TIMER_RADIUS_SIZE / aspect_size)
 
     ctx.font = `bold ${radius * 0.8}px "Courier New", Courier, monospace`;
     ctx.beginPath();
@@ -590,22 +642,22 @@ function drawTimer(vWidth, vHeight) {
     ctx.fillStyle = "#fb0000";
     ctx.fill();
 
+    ctx.lineWidth = 2
     ctx.strokeStyle = "#ffffff";
     ctx.stroke();
-
 
     ctx.fillStyle = "#ffffff";
 
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(Math.ceil(timeLeft)+"", centerX, centerY);
+    ctx.fillText(Math.ceil(timeLeft) + "", centerX, centerY);
     ctx.restore();
 }
 
 /** Function that Draws the info button and also the info dialog,NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
-* of screens having higher DPI so canvas needs to be scaled
-* */
-function drawInfoButton(vWidth) {
+ * of screens having higher DPI so canvas needs to be scaled
+ * */
+function drawInfoButton(vWidth,aspect_size) {
     if (!info.visible) return;
 
 
@@ -629,15 +681,15 @@ function drawInfoButton(vWidth) {
     ctx.fillText("?", info.x, info.y);
 
     if (info.hover) {
-        const padding = 15;
-        const tooltipWidth = 320;
+        const padding = 15 / aspect_size;
+        const tooltipWidth = 320 / aspect_size;
         const lines = info.text.split("\n");
-        const lineHeight = 13;
+        const lineHeight = 13 / aspect_size;
         const tooltipHeight = lines.length * lineHeight + padding * 2;
 
 
         let tooltipX = info.x - tooltipWidth;
-        let tooltipY = info.y + 20;
+        let tooltipY = info.y + (20 / aspect_size);
 
         ctx.fillStyle = "rgba(15, 23, 42, 0.95)";
         ctx.strokeStyle = "#475569";
@@ -646,11 +698,11 @@ function drawInfoButton(vWidth) {
 
         roundHelpScreenRect(ctx, tooltipX, tooltipY, tooltipWidth, tooltipHeight, 10, true, true);
 
-        const scaleFont = Math.min(14, vWidth * 0.015);
+        const scaleFont = info.radius * 3/4
         ctx.fillStyle = "#f8fafc";
         ctx.font = `${scaleFont}px Arial`;
         ctx.textAlign = "left";
-        // ctx.textBaseline = "top";
+
         lines.forEach((line, i) => {
             ctx.fillText(line, tooltipX + padding, tooltipY + padding + i * lineHeight);
         });
@@ -662,10 +714,9 @@ function drawImages(vWidth, vHeight) {
     const centerY = vHeight * 0.5; // Vertical center of the canvas
 
 
-    // TODO Change these so that the image will fit correctly on the screen
-    // Define how big the images should LOOK on screen (Virtual Pixels)
-    const displayWidth = Math.min(300, vWidth * 0.4);
+    const displayWidth = vWidth / 3
     const displayHeight = displayWidth * (4 / 5); // Maintains 5:4 ratio
+
     // Spacing between the two images
     const spacing = vWidth * 0.1;
 
@@ -677,7 +728,7 @@ function drawImages(vWidth, vHeight) {
 
         const y = centerY - (displayHeight / 2);
 
-        img.hitbox = { x, y, w: displayWidth, h: displayHeight };
+        img.hitbox = {x, y, w: displayWidth, h: displayHeight};
 
         // 1. Draw a "Cyber" Frame first
         ctx.strokeStyle = "#00f2ff";
@@ -703,11 +754,11 @@ function drawImages(vWidth, vHeight) {
     });
 }
 
-function drawPasswords() {
+function drawPasswords(vWidth, vHeight,aspect_size) {
     ctx.save(); // 1. Freeze current settings (Timer font, etc.)
 
-    // TODO Fix font so that is correct for canva size
-    const scaleFont = Math.max(14, canvas.width * 0.01);
+    const scaleFont = Math.round(PASSWORDS_FONT_SIZE / aspect_size)
+
     ctx.font = `bold ${scaleFont}px Arial`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -779,7 +830,6 @@ function handlePasswordChoice(text) {
     }
     startNewRound();
 }
-
 
 function drawBonusRound(vWidth, vHeight) {
 
