@@ -6,6 +6,7 @@
 
 
 import questions from "./questions.js";
+import {WEAK_PASSWORDS} from "./weak_passwords.js";
 
 const startScreen = document.getElementById("start-screen");
 const startBtn = document.getElementById("start-btn");
@@ -20,6 +21,15 @@ const TOTAL_TIMER_FONT_SIZE = 18
 const TIMER_RADIUS_SIZE = 25
 const INFO_BUTTON_RADIUS_SIZE = 18
 const INSTRUCTION_TEXT_FONT_SIZE = 20
+const RETRY_BUTTON_TEXT_FONT_SIZE = 18
+
+const PLAYING_PHASE = "playing"
+const SUCCESS_PHASE = "success"
+const RETRY_PROMPT_PHASE = "retryPrompt"
+const BONUS_ROUND_PHASE = "bonusRound"
+const FINAL_GAME_OVER_PHASE = "finalGameOver"
+
+const SYMBOLS = "!@#$%&*";
 
 let score = 0;
 let gameRunning = false;
@@ -32,6 +42,7 @@ let reallySafePasswords = []
 let safePasswords = []
 let notSafePasswords = []
 
+
 let currentRoundMode = "passwords";
 
 let gameDuration = 20;
@@ -39,7 +50,7 @@ let timeElapsed = 0;
 let gameEnded = false;
 
 
-let gamePhase = "playing"; // playing | success | retryPrompt | bonusRound | finalGameOver
+let gamePhase = PLAYING_PHASE; // playing | success | retryPrompt | bonusRound | finalGameOver
 
 let phaseTimer = 0;
 
@@ -84,8 +95,11 @@ No common patterns
 - No repeated characters like "aaaa"
 
 No personal info
-- Does NOT include: Name, Birth year, 
-Username`
+- Does NOT include: Name, Birth year, Username
+
+TIPS:
+- Numbers and special characters are in the color 
+  Green so that they can be noticed easily`
 };
 
 // Arrays to hold the successfully loaded image objects
@@ -175,7 +189,6 @@ function resizeCanvas() {
     // Adjust top area and UI positions
     topArea.style.height = "10vh"; // Use vh for consistency
 
-    // TODO Change these to percentages,used for help button center
     info.x = displayWidth - (displayWidth / 30);
     info.y = (displayWidth / 30);
     info.radius = INFO_BUTTON_RADIUS_SIZE / ( 900 / displayWidth )
@@ -216,12 +229,11 @@ function randomChar(type) {
     const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const lower = "abcdefghijklmnopqrstuvwxyz";
     const numbers = "0123456789";
-    const symbols = "!@#$%&*";
 
     if (type === "upper") return upper[Math.floor(Math.random() * upper.length)];
     if (type === "lower") return lower[Math.floor(Math.random() * lower.length)];
     if (type === "number") return numbers[Math.floor(Math.random() * numbers.length)];
-    if (type === "symbol") return symbols[Math.floor(Math.random() * symbols.length)];
+    if (type === "symbol") return SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
 }
 
 function generateReallySafe() {
@@ -245,37 +257,11 @@ function generateSafe() {
 }
 
 function generateNotSafe() {
-    const weak = [
-        "123456",
-        "password",
-        "qwerty",
-        "admin123",
-        "111111",
-        "abc123",
-        "letMeIn"
-    ];
 
-    let pw = weak[Math.floor(Math.random() * weak.length)];
+    let pw = WEAK_PASSWORDS[Math.floor(Math.random() * WEAK_PASSWORDS.length)];
     notSafePasswords.push(pw);
     return pw;
 }
-
-// function isSafePassword(pw) {
-//     const hasUpper = /[A-Z]/.test(pw);
-//     const hasLower = /[a-z]/.test(pw);
-//     const hasNumber = /[0-9]/.test(pw);
-//     const hasSymbol = /[!@#$%&*]/.test(pw);
-//
-//     const variety = [hasUpper, hasLower, hasNumber, hasSymbol].filter(Boolean).length;
-//     const weakPatterns = ["1234", "password", "qwerty", "admin"];
-//
-//     if (pw.length < 8) return false;
-//     if (variety < 3) return false;
-//     if (weakPatterns.some(p => pw.toLowerCase().includes(p))) return false;
-//
-//     return true;
-// }
-
 
 function getPasswordBoxDimensions(vWidth, vHeight) {
     const boxWidth = vWidth / 5
@@ -300,7 +286,6 @@ function spawnTwoPasswords() {
         secondIndex = Math.floor(Math.random() * generators.length);
     } while (secondIndex === firstIndex);
 
-    //TODO Change these so that the password box is always fit good for the text needed
     const {boxWidth, boxHeight, spacing} = getPasswordBoxDimensions(vWidth, vHeight);
 
     passwordChoices.push({
@@ -356,12 +341,12 @@ function update() {
     const delta = (now - lastTime) / 1000;
     lastTime = now;
 
-    if(gamePhase === "bonusRound"){
+    if(gamePhase === BONUS_ROUND_PHASE){
         minScore+=10;
         return;
     }
 
-    if (gamePhase === "playing") {
+    if (gamePhase === PLAYING_PHASE) {
         timeLeft -= delta;
         timeElapsed += delta;
 
@@ -373,29 +358,28 @@ function update() {
 
         if (timeElapsed >= gameDuration) {
             if (score >= minScore) {
-                gamePhase = "success";
+                gamePhase = SUCCESS_PHASE;
                 phaseTimer = 3;
                 minScore += 10;
             } else {
-                gamePhase = "retryPrompt";
+                gamePhase = RETRY_PROMPT_PHASE;
             }
         }
     }
 
-    if (gamePhase === "success") {
+    if (gamePhase === SUCCESS_PHASE) {
         phaseTimer -= delta;
 
-        if (phaseTimer <= 0) {
-            resetMainGame();
-        }
+        // if (phaseTimer <= 0) {
+        //     resetMainGame();
+        // }
     }
 }
-
 
 function resetMainGame() {
     timeElapsed = 0;
     gameRunning = true;
-    gamePhase = "playing";
+    gamePhase = PLAYING_PHASE;
     startNewRound();
     lastTime = Date.now();
     gameLoop();
@@ -435,22 +419,22 @@ function draw() {
 
     console.log(gamePhase)
 
-    if (gamePhase === "success") {
+    if (gamePhase === SUCCESS_PHASE) {
         drawSuccessScreen(vWidth, vHeight);
         return;
     }
 
-    if (gamePhase === "retryPrompt") {
+    if (gamePhase === RETRY_PROMPT_PHASE) {
         drawRetryPrompt(vWidth, vHeight);
         return;
     }
 
-    if (gamePhase === "finalGameOver") {
+    if (gamePhase === FINAL_GAME_OVER_PHASE) {
         drawGameOver(vWidth, vHeight);
         return;
     }
 
-    if (gamePhase === "bonusRound") {
+    if (gamePhase === BONUS_ROUND_PHASE) {
         console.log('draw() - (gamePhase === "bonusRound")')
         drawBonusRound(vWidth, vHeight);
         return;
@@ -469,7 +453,7 @@ function draw() {
 
     drawTotalTimer(vWidth, vHeight,aspect_size);
 
-    drawInfoButton(vWidth,aspect_size); // Keep this last to stay on top!
+    drawInfoButton(vWidth,aspect_size);
 }
 
 function drawSuccessScreen(vWidth, vHeight) {
@@ -523,7 +507,7 @@ function drawSuccessScreen(vWidth, vHeight) {
     );
 }
 
-function drawRetryPrompt(vWidth, vHeight) {
+function  drawRetryPrompt(vWidth, vHeight,aspect_size) {
 
     ctx.fillStyle = "#020617";
     ctx.fillRect(0, 0, vWidth, vHeight);
@@ -557,30 +541,48 @@ function drawRetryPrompt(vWidth, vHeight) {
         vHeight * 0.44
     );
 
+    const buttonW = vWidth / 6
+    const buttonH = vHeight / 8
+    const button_spacing = vWidth / 10
 
     drawButton(
-        "Try Again", vWidth / 2 - 160, vHeight * 0.56, 150, 52, true
+        "Try Again", vWidth / 2 - (button_spacing + buttonW), vHeight * 0.56, buttonW, buttonH, true,aspect_size
     );
 
     drawButton(
-        "Quit", vWidth / 2 + 10, vHeight * 0.56, 150, 52, false
+        "Quit", vWidth / 2 + button_spacing, vHeight * 0.56, buttonW, buttonH, false,aspect_size
     );
 }
 
-function drawButton(text, x, y, w, h, primary) {
+function drawButton(text, x, y, w, h, primary,aspect_size) {
+    const radius = 12; // Adjust this for more or less roundness
+
+    ctx.save();
+
+    // 1. Set Colors based on "Primary" status
     ctx.fillStyle = primary ? "#22c55e" : "#334155";
-    ctx.fillRect(x, y, w, h);
-
-
     ctx.strokeStyle = primary ? "#86efac" : "#64748b";
     ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, h);
 
+    // 2. Draw the Rounded Rectangle Fill
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, radius);
+    ctx.fill();
+
+    // 3. Draw the Rounded Rectangle Border
+    ctx.stroke();
+
+    // 4. Draw the Text
     ctx.fillStyle = "#f8fafc";
-    ctx.font = "bold 18px Arial";
+    // Set a reasonable font size based on button height
+    const fontSize = Math.round(RETRY_BUTTON_TEXT_FONT_SIZE / aspect_size)
+    ctx.font = `bold ${fontSize}px Arial`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+
     ctx.fillText(text, x + w / 2, y + h / 2);
+
+    ctx.restore();
 }
 
 /**
@@ -612,8 +614,7 @@ function drawInstructions(vWidth, vHeight,aspect_size) {
     ctx.fillText("Click the SAFER option", vWidth / 2, vHeight * 0.15);
 }
 
-/** Function that draws the Score
- * */
+/** Function that draws the Score */
 function drawScore(vWidth,aspect_size) {
 
     let font_size = Math.round(SCORE_FONT_SIZE / aspect_size)
@@ -626,7 +627,7 @@ function drawScore(vWidth,aspect_size) {
     ctx.fillText("Score: " + score, text_x, text_y);
 }
 
-/** Function that draws the circular timer,NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
+/** Function that draws the circular timer,NOTE: `vWidth` and `vHeight` are used AND NOT `canvas.width` and `canvas.height` because
  * of screens having higher DPI so canvas needs to be scaled
  * */
 function drawTimer(vWidth, vHeight,aspect_size) {
@@ -760,11 +761,10 @@ function drawPasswords(vWidth, vHeight,aspect_size) {
     const scaleFont = Math.round(PASSWORDS_FONT_SIZE / aspect_size)
 
     ctx.font = `bold ${scaleFont}px Arial`;
-    ctx.textAlign = "center";
+    ctx.textAlign = "left";
     ctx.textBaseline = "middle";
 
     passwordChoices.forEach((pw) => {
-        const r = 12;
 
         ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
         ctx.shadowBlur = 10;
@@ -780,15 +780,23 @@ function drawPasswords(vWidth, vHeight,aspect_size) {
         gradient.addColorStop(1, "#1e293b");
 
         ctx.fillStyle = gradient;
-        roundRect(pw.x, pw.y, pw.width, pw.height, r, true, false);
+        roundRect(pw.x, pw.y, pw.width, pw.height, 12, true, false);
 
-        ctx.shadowColor = "transparent";
+        // Draw the border
         ctx.strokeStyle = "#f8fafc";
         ctx.lineWidth = 2;
-        roundRect(pw.x, pw.y, pw.width, pw.height, r, false, true);
+        roundRect(pw.x, pw.y, pw.width, pw.height, 12, false, true);
 
-        ctx.fillStyle = "#f8fafc";
-        ctx.fillText(pw.text, pw.x + pw.width / 2, pw.y + pw.height / 2);
+        // Highlight Logic
+        let totalTextWidth = ctx.measureText(pw.text).width;
+        let startX = pw.x + (pw.width / 2) - (totalTextWidth / 2);
+
+        for (let char of pw.text) {
+            ctx.fillStyle = (SYMBOLS.includes(char) || !isNaN(parseInt(char)))
+                ? "#22c55e" : "#f8fafc";
+            ctx.fillText(char, startX, pw.y + pw.height / 2);
+            startX += ctx.measureText(char).width;
+        }
 
     });
 
@@ -804,7 +812,7 @@ function gameLoop() {
 
 function handlePasswordChoice(text) {
 
-    if (gamePhase === "bonusRound") {
+    if (gamePhase === BONUS_ROUND_PHASE) {
         bonusQuestionsAnswered++;
 
         if (reallySafePasswords.includes(text)) bonusScore += 1;
@@ -813,7 +821,7 @@ function handlePasswordChoice(text) {
             if (bonusScore >= 3) {
                 resetMainGame();
             } else {
-                gamePhase = "finalGameOver";
+                gamePhase = FINAL_GAME_OVER_PHASE;
             }
         } else {
             spawnTwoPasswords();
@@ -947,90 +955,48 @@ function roundHelpScreenRect(ctx, x, y, width, height, radius, fill, stroke) {
     if (stroke) ctx.stroke();
 }
 
-//
-// function startCountdown() {
-//     waiting = true;
-//     countdown = 5;
-//     passwordChoices = [];
-//
-//     const interval = setInterval(() => {
-//         countdown--;
-//
-//         if (countdown <= 0) {
-//             clearInterval(interval);
-//             waiting = false;
-//             spawnTwoPasswords();
-//         }
-//     }, 1000);
-// }
-//
-// function drawCountdown() {
-//     if (!waiting) return;
-//
-//     ctx.fillStyle = "#f97316";
-//     ctx.font = "26px Arial";
-//     ctx.textAlign = "center";
-//     ctx.fillText(
-//         `${countdown}`,
-//         canvas.width / 2,
-//         canvas.height / 2
-//     );
-// }
+function isInside(mx, my, x, y, w, h) {
+    return mx >= x && mx <= x + w && my >= y && my <= y + h;
+}
 
-// const title = document.getElementById("game-title");
-//
-//
-// let fireworkInterval = setInterval(() => {
-//     createFireworkBurst();
-//     createFireworkBurst();
-// }, 600);
-//
-// function createFireworkBurst() {
-//     const rect = title.getBoundingClientRect();
-//
-//
-//     const x =
-//         rect.left +
-//         Math.random() * rect.width +
-//         (Math.random() > 0.5 ? -40 : 40);
-//
-//     const y =
-//         rect.top +
-//         Math.random() * rect.height +
-//         (Math.random() > 0.5 ? -30 : 30);
-//
-//     for (let i = 0; i < 30; i++) {
-//         const particle = document.createElement("div");
-//         particle.classList.add("firework");
-//
-//         const angle = Math.random() * Math.PI * 2;
-//         const distance = Math.random() * 150 + 50;
-//
-//         particle.style.left = `${x}px`;
-//         particle.style.top = `${y}px`;
-//         particle.style.backgroundColor = randomColor();
-//
-//         particle.style.setProperty("--dx", `${Math.cos(angle) * distance}px`);
-//         particle.style.setProperty("--dy", `${Math.sin(angle) * distance}px`);
-//
-//         document.body.appendChild(particle);
-//
-//         setTimeout(() => particle.remove(), 1200);
-//     }
-// }
-//
-// function randomColor() {
-//     const colors = [
-//         "#22c55e", // green
-//         "#38bdf8", // blue
-//         "#facc15", // yellow
-//         "#f472b6", // pink
-//         "#a78bfa", // purple
-//         "#fb7185"  // red
-//     ];
-//     return colors[Math.floor(Math.random() * colors.length)];
-// }
+function handleBonusAnswer(index) {
+    selectedOption = index;
 
+    const correct = bonusQuestions[bonusIndex].correctIndex;
+    if (index === correct) bonusScore++;
+
+    setTimeout(() => {
+        selectedOption = null;
+        bonusIndex++;
+
+        if (bonusIndex === 5) {
+            endBonusRound();
+        }
+    }, 600);
+}
+
+function endBonusRound() {
+    bonusActive = false;
+
+    if (bonusScore >= 3) {
+        resetMainGame();
+    } else {
+        gamePhase = FINAL_GAME_OVER_PHASE;
+    }
+}
+
+function startBonusRound() {
+    shuffleArray(bonusQuestions);
+    bonusIndex = 0;
+    bonusScore = 0;
+    selectedOption = null;
+    bonusActive = true;
+
+    console.log('startBonusRound()')
+
+    gamePhase = BONUS_ROUND_PHASE;
+    timeLeft = Infinity;
+}
 
 
 /**
@@ -1053,102 +1019,6 @@ startBtn.addEventListener("click", () => {
     startGame();
 });
 
-// canvas.addEventListener("click", (e) => {
-//     const rect = canvas.getBoundingClientRect();
-//     const mouseX = e.clientX - rect.left;
-//     const mouseY = e.clientY - rect.top;
-//
-//     if (gamePhase === "retryPrompt") {
-//         if (isInside(mouseX, mouseY, vWidth / 2 - 150, vHeight * 0.55, 130, 50)) {
-//             startBonusRound();
-//         }
-//         if (isInside(mouseX, mouseY, vWidth / 2 + 20, vHeight * 0.55, 130, 50)) {
-//             gamePhase = "finalGameOver";
-//         }
-//         return;
-//     }
-//
-//     if (currentRoundMode === "passwords") {
-//         passwordChoices.forEach(pw => {
-//             if (
-//                 mouseX >= pw.x &&
-//                 mouseX <= pw.x + pw.width &&
-//                 mouseY >= pw.y &&
-//                 mouseY <= pw.y + pw.height
-//             ) {
-//                 handlePasswordChoice(pw.text);
-//             }
-//         });
-//     } else if (currentRoundMode === "images") {
-//         currentImages.forEach((img) => {
-//             // We use the same centering math used in drawImages
-//             // const vWidth = canvas.width / dpr;
-//             // const vHeight = canvas.height / dpr;
-//             // const centerX = vWidth / 2;
-//             // const spacing = Math.min(260, vWidth / 2 - 40);
-//             //
-//             // const imgWidth = 200; // Match your draw size
-//             // const imgHeight = 150;
-//             // const x = index === 0 ? centerX - spacing - 100 : centerX + spacing - 100;
-//             // const y = vHeight * 0.5 - 75;
-//             //
-//             // if (mouseX >= x && mouseX <= x + imgWidth && mouseY >= y && mouseY <= y + imgHeight) {
-//             //     handleImageChoice(img);
-//             // }
-//             if (img.hitbox &&
-//                 mouseX >= img.hitbox.x && mouseX <= img.hitbox.x + img.hitbox.w &&
-//                 mouseY >= img.hitbox.y && mouseY <= img.hitbox.y + img.hitbox.h) {
-//                 handleImageChoice(img);
-//             }
-//         });
-//     }
-// });
-
-// canvas.addEventListener("click", (e) => {
-//     const rect = canvas.getBoundingClientRect();
-//     const mouseX = e.clientX - rect.left;
-//     const mouseY = e.clientY - rect.top;
-//
-//     const vWidth = canvas.width;
-//     const vHeight = canvas.height;
-//
-//
-//     if (gamePhase === "retryPrompt") {
-//         console.log('retry prompt')
-//         if (isInside(mouseX, mouseY, vWidth / 2 - 150, vHeight * 0.55, 130, 50)) {
-//             startBonusRound();
-//         }
-//
-//         if (isInside(mouseX, mouseY, vWidth / 2 + 20, vHeight * 0.55, 130, 50)) {
-//             gamePhase = "finalGameOver";
-//         }
-//         return;
-//     }
-//
-//     if (currentRoundMode === "passwords") {
-//         passwordChoices.forEach(pw => {
-//             if (
-//                 mouseX >= pw.x &&
-//                 mouseX <= pw.x + pw.width &&
-//                 mouseY >= pw.y &&
-//                 mouseY <= pw.y + pw.height
-//             ) {
-//                 handlePasswordChoice(pw.text);
-//             }
-//         });
-//     }
-//
-//
-//     else if (currentRoundMode === "images") {
-//         currentImages.forEach(img => {
-//             if (img.hitbox &&
-//                 mouseX >= img.hitbox.x && mouseX <= img.hitbox.x + img.hitbox.w &&
-//                 mouseY >= img.hitbox.y && mouseY <= img.hitbox.y + img.hitbox.h) {
-//                 handleImageChoice(img);
-//             }
-//         });
-//     }
-// });
 
 canvas.addEventListener("click", (e) => {
 
@@ -1206,18 +1076,23 @@ canvas.addEventListener("click", (e) => {
     const vWidth = canvas.width / dpr;
     const vHeight = canvas.height / dpr;
 
-    if (gamePhase === "retryPrompt") {
+    if (gamePhase === RETRY_PROMPT_PHASE) {
 
-        if (isInside(mouseX, mouseY, vWidth / 2 - 160, vHeight * 0.56, 150, 52)) {
+        const buttonW = vWidth / 6
+        const buttonH = vHeight / 8
+        const button_spacing = vWidth / 10
+
+        if (isInside(mouseX, mouseY, vWidth / 2 - (button_spacing + buttonW), vHeight * 0.56, buttonW, buttonH)) {
             //to do
             console.log('try again clicked')
             startBonusRound();
             return;
         }
 
-        if (isInside(mouseX, mouseY, vWidth / 2 + 10, vHeight * 0.56, 150, 52)) {
-            // gamePhase = "finalGameOver";
+        if (isInside(mouseX, mouseY, vWidth / 2 + button_spacing, vHeight * 0.56, buttonW, buttonH)) {
+            // gamePhase = FINAL_GAME_OVER_PHASE;
             score = 0;
+
             resetMainGame();
             return;
         }
@@ -1237,50 +1112,6 @@ canvas.addEventListener("click", (e) => {
         });
     }
 });
-
-function isInside(mx, my, x, y, w, h) {
-    return mx >= x && mx <= x + w && my >= y && my <= y + h;
-}
-
-
-function handleBonusAnswer(index) {
-    selectedOption = index;
-
-    const correct = bonusQuestions[bonusIndex].correctIndex;
-    if (index === correct) bonusScore++;
-
-    setTimeout(() => {
-        selectedOption = null;
-        bonusIndex++;
-
-        if (bonusIndex === 5) {
-            endBonusRound();
-        }
-    }, 600);
-}
-
-function endBonusRound() {
-    bonusActive = false;
-
-    if (bonusScore >= 3) {
-        resetMainGame();
-    } else {
-        gamePhase = "finalGameOver";
-    }
-}
-
-function startBonusRound() {
-    shuffleArray(bonusQuestions);
-    bonusIndex = 0;
-    bonusScore = 0;
-    selectedOption = null;
-    bonusActive = true;
-
-    console.log('startBonusRound()')
-
-    gamePhase = "bonusRound";
-    timeLeft = Infinity;
-}
 
 canvas.addEventListener("mousemove", (e) => {
     const rect = canvas.getBoundingClientRect();
