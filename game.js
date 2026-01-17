@@ -611,6 +611,21 @@ function drawGameOver(vWidth, vHeight, aspect_size) {
     ctx.textAlign = "center"
     ctx.textBaseline = "middle"
     ctx.fillText(`Game Over! Score: ${score}`, vWidth / 2, vHeight / 2)
+
+    //  RESTART BUTTON
+    const btnW = vWidth / 4
+    const btnH = 50
+    const btnX = (vWidth - btnW) / 2
+    const btnY = vHeight / 2 + 20
+
+    ctx.fillStyle = "#22c55e"
+    roundRect(btnX, btnY, btnW, btnH, 12, true, false)
+
+    ctx.fillStyle = "#ffffff"
+    ctx.font = "bold 20px Arial"
+    ctx.fillText("Restart Game", vWidth / 2, btnY + btnH / 2)
+
+    window.restartButton = { x: btnX, y: btnY, w: btnW, h: btnH }
 }
 
 /** Functions that draw the instruction text, NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
@@ -1112,6 +1127,21 @@ canvas.addEventListener("click", (e) => {
     const optionGap = 16 / aspect_size
 
     const optionX = (vWidth - optionWidth) / 2
+
+    if (gamePhase === FINAL_GAME_OVER_PHASE && window.restartButton) {
+        if (
+            isInside(
+                mx,
+                my,
+                restartButton.x,
+                restartButton.y,
+                restartButton.w,
+                restartButton.h
+            )
+        ) {
+            location.reload()   // restart igra
+        }
+    }
 
     if(gamePhase === BONUS_ROUND_PHASE){
         bonusQuestions[bonusIndex].options.forEach((_, i) => {
