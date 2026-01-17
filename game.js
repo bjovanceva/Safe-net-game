@@ -8,6 +8,8 @@
 import questions from "./data/questions.js"
 import {WEAK_PASSWORDS} from "./data/weak_passwords.js"
 
+import {Game2D} from "./2d_game.js"
+
 const startScreen = document.getElementById("start-screen")
 const startBtn = document.getElementById("start-btn")
 const canvas = document.getElementById("gameCanvas")
@@ -34,6 +36,7 @@ const SUCCESS_PHASE = "success"
 const RETRY_PROMPT_PHASE = "retryPrompt"
 const BONUS_ROUND_PHASE = "bonusRound"
 const FINAL_GAME_OVER_PHASE = "finalGameOver"
+const MINI_GAME_OVER_PHASE = "finalGameOver"
 
 const SYMBOLS = "!@#$%&*"
 
@@ -54,7 +57,7 @@ let notSafePasswords = []
 
 let currentRoundMode = PASSWORDS_MODE
 
-let gameDuration = 20
+let gameDuration = 3
 let timeElapsed = 0
 let gameEnded = false
 
@@ -120,6 +123,11 @@ const unsafeImages = []
 // You can increase this number as you add more images to your folder.
 const MAX_IMAGES_TO_CHECK_GOOD = 7
 const MAX_IMAGES_TO_CHECK_BAD = 8
+
+
+const {game,canvas: canvas2D,ctx:ctx2D,Loop} = Game2D()
+
+canvas2D.style.display = 'none';
 
 /**
  * TODO - Function Definition Logic Here
@@ -192,9 +200,20 @@ function resizeCanvas() {
     canvas.style.width = displayWidth + "px"
     canvas.style.height = displayHeight + "px"
 
+
     // Reset and scale
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
+
+
+    resizeMiniGameCanvas(
+        canvas2D,
+        ctx2D,
+        game,
+        displayWidth,
+        displayHeight,
+        dpr
+    )
 
     // Adjust top area and UI positions
     topArea.style.height = "10vh" // Use vh for consistency
@@ -233,6 +252,30 @@ function startGame() {
     timeElapsed = 0
     startNewRound()
     gameLoop()
+}
+
+function resizeMiniGameCanvas(canvas, ctx, game, displayWidth, displayHeight, dpr) {
+
+    // internal resolution (Hi-DPI safe)
+    canvas.width  = displayWidth * dpr
+    canvas.height = displayHeight * dpr
+
+    // visual size
+    canvas.style.width  = displayWidth + "px"
+    canvas.style.height = displayHeight + "px"
+
+    // viewport for Clarity camera
+    game.set_viewport(
+        canvas.width / dpr,
+        canvas.height / dpr
+    )
+
+    // reset & scale context
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.scale(dpr, dpr)
+
+    // pixel-perfect
+    ctx.imageSmoothingEnabled = false
 }
 
 function randomChar(type) {
@@ -1139,7 +1182,11 @@ canvas.addEventListener("click", (e) => {
                 restartButton.h
             )
         ) {
-            location.reload()   // restart igra
+               // resetMainGame()// restart igra
+
+            canvas.style.display = 'none'
+            canvas2D.style.display="block"
+            Loop()
         }
     }
 
@@ -1212,3 +1259,14 @@ canvas.addEventListener("click", (e) => {
 //     }
 //
 // })
+
+
+/*
+* TODO
+*
+* Start minigame fix
+* After death minigame fix
+* Win Minigame fix
+* Fix buttons Try again...
+*
+* */
