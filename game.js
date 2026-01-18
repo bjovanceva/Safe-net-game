@@ -18,7 +18,7 @@ const ctx = canvas.getContext("2d")
 const dpr = window.devicePixelRatio || 1
 
 const SCORE_FONT_SIZE = 18
-const PASSWORDS_FONT_SIZE = 18
+const PASSWORDS_FONT_SIZE = 22
 const TOTAL_TIMER_FONT_SIZE = 18
 const TIMER_RADIUS_SIZE = 25
 const INFO_BUTTON_RADIUS_SIZE = 18
@@ -36,7 +36,7 @@ const SUCCESS_PHASE = "success"
 const RETRY_PROMPT_PHASE = "retryPrompt"
 const BONUS_ROUND_PHASE = "bonusRound"
 const FINAL_GAME_OVER_PHASE = "finalGameOver"
-const MINI_GAME_OVER_PHASE = "finalGameOver"
+const MINI_GAME_PHASE = "miniGame"
 
 const SYMBOLS = "!@#$%&*"
 
@@ -57,10 +57,11 @@ let notSafePasswords = []
 
 let currentRoundMode = PASSWORDS_MODE
 
-let gameDuration = 3
+const gameDuration = 2
+const ROUND_DURATION = 5
+
 let timeElapsed = 0
 let gameEnded = false
-
 
 
 let gamePhase = PLAYING_PHASE // playing | success | retryPrompt | bonusRound | finalGameOver
@@ -73,6 +74,9 @@ let bonusScore = 0
 let selectedOption = null
 let bonusActive = true
 let minScore = 10
+let successSequence = 0
+
+let restartButton = null
 
 const bonusQuestions = questions
 
@@ -125,7 +129,8 @@ const MAX_IMAGES_TO_CHECK_GOOD = 7
 const MAX_IMAGES_TO_CHECK_BAD = 8
 
 
-const {game,canvas: canvas2D,ctx:ctx2D,Loop} = Game2D()
+
+const {game: game,canvas: canvas2D, ctx: ctx2D, StartGame} = Game2D(endMiniGame)
 
 canvas2D.style.display = 'none';
 
@@ -246,6 +251,7 @@ function resizeCanvas() {
 }
 
 function startGame() {
+    gamePhase = PLAYING_PHASE
     score = 0
     gameRunning = true
     gameEnded = false
@@ -257,11 +263,11 @@ function startGame() {
 function resizeMiniGameCanvas(canvas, ctx, game, displayWidth, displayHeight, dpr) {
 
     // internal resolution (Hi-DPI safe)
-    canvas.width  = displayWidth * dpr
+    canvas.width = displayWidth * dpr
     canvas.height = displayHeight * dpr
 
     // visual size
-    canvas.style.width  = displayWidth + "px"
+    canvas.style.width = displayWidth + "px"
     canvas.style.height = displayHeight + "px"
 
     // viewport for Clarity camera
@@ -317,8 +323,8 @@ function generateNotSafe() {
 }
 
 function getPasswordBoxDimensions(vWidth, vHeight) {
-    const boxWidth = vWidth / 5
-    const boxHeight = vHeight / 10
+    const boxWidth = vWidth / 3.5
+    const boxHeight = vHeight / 9
     const spacing = vWidth * 0.2 // 20% distance from center
     return {boxWidth, boxHeight, spacing}
 }
@@ -389,6 +395,26 @@ function roundRect(x, y, w, h, r, fill, stroke) {
     if (stroke) ctx.stroke()
 }
 
+function startMiniGame() {
+    canvas.style.display = 'none'
+    canvas2D.style.display = "block"
+    game.running = true
+
+    gameRunning = false
+
+    StartGame()
+}
+
+function endMiniGame() {
+    canvas.style.display = 'block'
+    canvas2D.style.display = "none"
+
+    game.running = false
+    minScore = 10
+    successSequence = 0
+    startGame()
+}
+
 function update() {
     const now = Date.now()
     const delta = (now - lastTime) / 1000
@@ -415,9 +441,12 @@ function update() {
             if (score >= minScore) {
                 gamePhase = SUCCESS_PHASE
                 phaseTimer = 3
-                minScore += 10
+                minScore = score + 10;
+                successSequence += 1
             } else {
                 gamePhase = RETRY_PROMPT_PHASE
+                minScore = 10
+                successSequence = 0
             }
         }
     }
@@ -426,7 +455,13 @@ function update() {
         phaseTimer -= delta
 
         if (phaseTimer <= 0) {
-            resetMainGame()
+            if(successSequence > 1){
+                startMiniGame()
+            }
+            else {
+                resetMainGame()
+            }
+
         }
     }
 }
@@ -467,10 +502,6 @@ function draw() {
 
     ctx.clearRect(0, 0, vWidth, vHeight)
 
-    // if (gameEnded) {
-    //     drawGameOver(vWidth, vHeight)
-    //     return
-    // }
 
     console.log(gamePhase)
 
@@ -480,7 +511,7 @@ function draw() {
     }
 
     if (gamePhase === RETRY_PROMPT_PHASE) {
-        drawRetryPrompt(vWidth, vHeight)
+        drawRetryPrompt(vWidth, vHeight, aspect_size)
         return
     }
 
@@ -563,81 +594,92 @@ function drawSuccessScreen(vWidth, vHeight) {
 }
 
 function drawRetryPrompt(vWidth, vHeight, aspect_size) {
+    // 1. Cyber Background (Deep Navy Gradient)
+    const bgGrad = ctx.createRadialGradient(vWidth / 2, vHeight / 2, 10, vWidth / 2, vHeight / 2, vWidth);
+    bgGrad.addColorStop(0, "#0f172a");
+    bgGrad.addColorStop(1, "#020617");
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, vWidth, vHeight);
 
-    ctx.fillStyle = "#020617"
-    ctx.fillRect(0, 0, vWidth, vHeight)
+    // 2. Subtle Scan-lines (Optional but very Cyber)
+    ctx.fillStyle = "rgba(0, 242, 255, 0.03)";
+    for (let i = 0; i < vHeight; i += 4) {
+        ctx.fillRect(0, i, vWidth, 1);
+    }
 
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
 
+    // 3. Header with "Glow"
+    ctx.save();
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = "#facc15";
+    ctx.fillStyle = "#facc15";
+    ctx.font = `bold ${vWidth * 0.06}px monospace`; // Monospace font
+    ctx.fillText("CRITICAL SYSTEM FAILURE", vWidth / 2, vHeight * 0.3);
+    ctx.restore();
 
-    ctx.fillStyle = "#facc15" // warning / chance color
-    ctx.font = `bold ${vWidth * 0.055}px Arial`
-    ctx.fillText(
-        "One Last Chance",
-        vWidth / 2,
-        vHeight * 0.32
-    )
+    // 4. Sub-header text
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = `${vWidth * 0.03}px monospace`;
+    ctx.fillText("> INITIALIZING RECOVERY OPTIONS...", vWidth / 2, vHeight * 0.4);
 
+    // Button sizing - making them wider for the long text
+    const buttonW = vWidth * 0.35;
+    const buttonH = Math.round(60 / aspect_size);
+    const button_spacing = Math.round(20 / aspect_size);
 
-    ctx.strokeStyle = "#1e293b"
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.moveTo(vWidth * 0.35, vHeight * 0.38)
-    ctx.lineTo(vWidth * 0.65, vHeight * 0.38)
-    ctx.stroke()
+    // Recovery (The "Safe" Path)
+    drawCyberButton(
+        "RECOVERY_PROTOCOL", vWidth / 2 - buttonW - button_spacing, vHeight * 0.56, buttonW, buttonH, true, aspect_size
+    );
 
-
-    ctx.fillStyle = "#cbd5f5"
-    ctx.font = `${vWidth * 0.03}px Arial`
-    ctx.fillText(
-        "You can continue the game once more.",
-        vWidth / 2,
-        vHeight * 0.44
-    )
-
-    const buttonW = vWidth / 6
-    const buttonH = vHeight / 8
-    const button_spacing = vWidth / 10
-
-    drawButton(
-        "Try Again", vWidth / 2 - (button_spacing + buttonW), vHeight * 0.56, buttonW, buttonH, true, aspect_size
-    )
-
-    drawButton(
-        "Quit", vWidth / 2 + button_spacing, vHeight * 0.56, buttonW, buttonH, false, aspect_size
-    )
+    // Terminate (The "Hard" Path)
+    drawCyberButton(
+        "TERMINATE_REBOOT", vWidth / 2 + button_spacing, vHeight * 0.56, buttonW, buttonH, false, aspect_size
+    );
 }
 
-function drawButton(text, x, y, w, h, primary, aspect_size) {
-    const radius = 12 // Adjust this for more or less roundness
+function drawCyberButton(text, x, y, w, h, primary, aspect_size) {
+    ctx.save();
 
-    ctx.save()
+    const color = primary ? "#22c55e" : "#ef4444"; // Green for recovery, Red for terminate
+    const fontSize = Math.round(RETRY_BUTTON_TEXT_FONT_SIZE / aspect_size);
 
-    // 1. Set Colors based on "Primary" status
-    ctx.fillStyle = primary ? "#22c55e" : "#334155"
-    ctx.strokeStyle = primary ? "#86efac" : "#64748b"
-    ctx.lineWidth = 2
+    // 1. Draw Background Box (Semi-transparent)
+    ctx.fillStyle = "rgba(15, 23, 42, 0.8)";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 4 / aspect_size);
+    ctx.fill();
+    ctx.stroke();
 
-    // 2. Draw the Rounded Rectangle Fill
-    ctx.beginPath()
-    ctx.roundRect(x, y, w, h, radius)
-    ctx.fill()
+    // 2. Add Corner "Brackets" for extra Cyber feel
+    ctx.lineWidth = 4 / aspect_size;
+    // Top-left bracket
+    ctx.beginPath();
+    ctx.moveTo(x, y + 15 / aspect_size);
+    ctx.lineTo(x, y);
+    ctx.lineTo(x + 15 / aspect_size, y);
+    ctx.stroke();
+    // Bottom-right bracket
+    ctx.beginPath();
+    ctx.moveTo(x + w - 15 / aspect_size, y + h);
+    ctx.lineTo(x + w, y + h);
+    ctx.lineTo(x + w, y + h - 15 / aspect_size);
+    ctx.stroke();
 
-    // 3. Draw the Rounded Rectangle Border
-    ctx.stroke()
+    // 3. Glowing Text
+    ctx.shadowBlur = 10 / aspect_size;
+    ctx.shadowColor = color;
+    ctx.fillStyle = "#f8fafc";
+    ctx.font = `bold ${fontSize}px monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x + w / 2, y + h / 2);
 
-    // 4. Draw the Text
-    ctx.fillStyle = "#f8fafc"
-    // Set a reasonable font size based on button height
-    const fontSize = Math.round(RETRY_BUTTON_TEXT_FONT_SIZE / aspect_size)
-    ctx.font = `bold ${fontSize}px Arial`
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-
-    ctx.fillText(text, x + w / 2, y + h / 2)
-
-    ctx.restore()
+    ctx.restore();
 }
 
 /**
@@ -668,216 +710,319 @@ function drawGameOver(vWidth, vHeight, aspect_size) {
     ctx.font = "bold 20px Arial"
     ctx.fillText("Restart Game", vWidth / 2, btnY + btnH / 2)
 
-    window.restartButton = { x: btnX, y: btnY, w: btnW, h: btnH }
+    restartButton = {x: btnX, y: btnY, w: btnW, h: btnH}
 }
 
 /** Functions that draw the instruction text, NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
  * of screens having higher DPI so canvas needs to be scaled
  * */
 function drawInstructions(vWidth, vHeight, aspect_size) {
+    ctx.save();
 
-    ctx.fillStyle = "#f6f3f3"
-    const scaleFont = Math.round(INSTRUCTION_TEXT_FONT_SIZE / aspect_size)
-    ctx.font = `bold ${scaleFont}px Arial`
-    ctx.textAlign = "center"
-    // Positioned relative to top (15% down)
-    ctx.fillText("Click the SAFER option", vWidth / 2, vHeight * 0.15)
+    const scaleFont = Math.round(INSTRUCTION_TEXT_FONT_SIZE / aspect_size);
+    const yPos = vHeight * 0.15;
+
+    // 1. Draw a subtle "Underline" or accent bar
+    ctx.strokeStyle = "rgba(0, 242, 255, 0.3)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(vWidth * 0.3, yPos + (15 / aspect_size));
+    ctx.lineTo(vWidth * 0.7, yPos + (15 / aspect_size));
+    ctx.stroke();
+
+    // 2. Mission Text with a "Terminal" prefix
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `bold ${scaleFont}px "Courier New", Courier, monospace`;
+
+    // Glowing Effect
+    ctx.shadowBlur = 8 / aspect_size;
+    ctx.shadowColor = "#00f2ff";
+    ctx.fillStyle = "#00f2ff";
+
+    // We add "> " to make it look like a command line
+    ctx.fillText("> SELECT_SAFER_PROTOCOL", vWidth / 2, yPos);
+
+    ctx.restore();
 }
 
 /** Function that draws the Score */
 function drawScore(vWidth, aspect_size) {
+    ctx.save();
+    let font_size = Math.round(SCORE_FONT_SIZE / aspect_size);
+    const text_x = 20 / aspect_size;
+    const text_y = 35 / aspect_size;
 
-    let font_size = Math.round(SCORE_FONT_SIZE / aspect_size)
-    ctx.fillStyle = "#f6f3f3"
-    ctx.font = `bold ${font_size}px Arial`
-    ctx.textAlign = "left"
+    // 1. Draw a small decorative HUD bracket behind the score
+    ctx.strokeStyle = "#00f2ff";
+    ctx.lineWidth = 2 / aspect_size;
+    ctx.beginPath();
+    ctx.moveTo(text_x - (5 / aspect_size), text_y - (15 / aspect_size));
+    ctx.lineTo(text_x - (5 / aspect_size), text_y + (10 / aspect_size));
+    ctx.lineTo(text_x + (10 / aspect_size), text_y + (10 / aspect_size));
+    ctx.stroke();
 
-    const text_x = 20 / aspect_size
-    const text_y = 30 / aspect_size
-    ctx.fillText("Score: " + score, text_x, text_y)
+    // 2. Draw the Score Text
+    ctx.fillStyle = "#00f2ff";
+    ctx.font = `bold ${font_size}px "Courier New", Courier, monospace`;
+    ctx.textAlign = "left";
+
+    // Use padding to move text away from the bracket
+    ctx.fillText("SCORE_" + score.toString().padStart(4, '0'), text_x + (5 / aspect_size), text_y);
+
+    ctx.restore();
 }
 
 /** Function that draws the circular timer,NOTE: `vWidth` and `vHeight` are used AND NOT `canvas.width` and `canvas.height` because
  * of screens having higher DPI so canvas needs to be scaled
  * */
 function drawTimer(vWidth, vHeight, aspect_size) {
+    ctx.save();
+    const centerX = vWidth / 2;
+    const centerY = vHeight * 0.28; // Slightly higher to clear the center play area
+    const radius = Math.round(TIMER_RADIUS_SIZE / aspect_size);
 
-    ctx.save()
-    const centerX = vWidth / 2
-    const centerY = vHeight * 0.35 // Moved up slightly from your fixed 280
-    const radius = Math.round(TIMER_RADIUS_SIZE / aspect_size)
+    // 1. Draw Background Glow
+    ctx.shadowBlur = 15 / aspect_size;
+    ctx.shadowColor = "#fb0000";
 
-    ctx.font = `bold ${radius * 0.8}px "Courier New", Courier, monospace`
-    ctx.beginPath()
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
-    ctx.fillStyle = "#fb0000"
-    ctx.fill()
+    // 2. The Inner Core (The Circle)
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(251, 0, 0, 0.2)"; // Semi-transparent red
+    ctx.fill();
+    ctx.strokeStyle = "#fb0000";
+    ctx.lineWidth = 3 / aspect_size;
+    ctx.stroke();
 
-    ctx.lineWidth = 2
-    ctx.strokeStyle = "#ffffff"
-    ctx.stroke()
+    // 3. The Depleting Data Ring
+    // This shows visually how much time is left in the specific round
+    const startAngle = -Math.PI / 2;
+    const progress = timeLeft / ROUND_DURATION; // Assuming you have roundDuration (e.g., 5s)
+    const endAngle = startAngle + (Math.PI * 2 * progress);
 
-    ctx.fillStyle = "#ffffff"
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius + 6 / aspect_size, startAngle, endAngle);
+    ctx.strokeStyle = "#00f2ff"; // Cyber blue progress
+    ctx.lineWidth = 4 / aspect_size;
+    ctx.lineCap = "round";
+    ctx.stroke();
 
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-    ctx.fillText(Math.ceil(timeLeft) + "", centerX, centerY)
-    ctx.restore()
+    // 4. The Timer Text
+    ctx.shadowBlur = 0; // Don't glow the text too much, or it's unreadable
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `bold ${radius * 0.9}px "Courier New", Courier, monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    // Adding +2 for that visual vertical centering fix
+    ctx.fillText(Math.ceil(timeLeft) + "", centerX, centerY + (2 / aspect_size));
+
+    ctx.restore();
 }
 
 /** Function that Draws the info button and also the info dialog,NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
  * of screens having higher DPI so canvas needs to be scaled
  * */
 function drawInfoButton(vWidth, aspect_size) {
-    if (!info.visible) return
+    if (!info.visible) return;
 
+    ctx.save();
+    // 1. Draw the Button Base (Darker, Metallic)
+    ctx.beginPath();
+    ctx.arc(info.x, info.y, info.radius, 0, Math.PI * 2);
+    ctx.fillStyle = "#0f172a";
+    ctx.fill();
 
-    ctx.shadowColor = "rgba(0,0,0,0.5)"
-    ctx.shadowBlur = 8
+    // 2. Neon Rim (Constant glow)
+    ctx.strokeStyle = info.hover ? "#00f2ff" : "#1e293b";
+    ctx.lineWidth = 2 / aspect_size;
+    ctx.shadowBlur = info.hover ? 15 / aspect_size : 0;
+    ctx.shadowColor = "#00f2ff";
+    ctx.stroke();
 
-    const gradient = ctx.createRadialGradient(info.x, info.y, info.radius / 2, info.x, info.y, info.radius)
-    gradient.addColorStop(0, "#334155")
-    gradient.addColorStop(1, "#0f172a")
-
-    ctx.beginPath()
-    ctx.arc(info.x, info.y, info.radius, 0, Math.PI * 2)
-    ctx.fillStyle = gradient
-    ctx.fill()
-    ctx.shadowBlur = 0 // Turn off shadow for text
-
-    ctx.fillStyle = "white"
-    ctx.font = `bold ${info.radius}px Arial`
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-    ctx.fillText("?", info.x, info.y)
+    // 3. The "?" Icon
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = info.hover ? "#00f2ff" : "#f8fafc";
+    ctx.font = `bold ${info.radius * 1.2}px monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("?", info.x, info.y);
+    ctx.restore();
 
     if (info.hover) {
-        ctx.save()
-        ctx.arc(info.x, info.y, info.radius, 0, Math.PI * 2)
-        ctx.strokeStyle = "#00f2ff"
-        ctx.lineWidth  = 1
-        ctx.stroke()
-
-        ctx.restore()
-        const padding = 15 / aspect_size
-        const tooltipWidth = 320 / aspect_size
-        const lines = info.text.split("\n")
-        const lineHeight = 13 / aspect_size
-        const tooltipHeight = lines.length * lineHeight + padding * 2
-
-
-        let tooltipX = info.x - tooltipWidth
-        let tooltipY = info.y + (25 / aspect_size)
-
-        ctx.fillStyle = "rgba(15, 23, 42, 0.95)"
-        ctx.strokeStyle = "#475569"
-        ctx.lineWidth = 2
-
-
-        roundHelpScreenRect(ctx, tooltipX, tooltipY, tooltipWidth, tooltipHeight, 10, true, true)
-
-        const scaleFont = info.radius * 3 / 4
-        ctx.fillStyle = "#f8fafc"
-        ctx.font = `${scaleFont}px Arial`
-        ctx.textAlign = "left"
-
-        lines.forEach((line, i) => {
-            ctx.fillText(line, tooltipX + padding, tooltipY + padding + i * lineHeight)
-        })
+        drawInfoPopup(vWidth, aspect_size);
     }
 }
 
-function drawImages(vWidth, vHeight) {
-    const centerX = vWidth / 2
-    const centerY = vHeight * 0.5 // Vertical center of the canvas
+function drawInfoPopup(vWidth, aspect_size) {
+    const padding = 20 / aspect_size;
+    const tooltipWidth = 450 / aspect_size;
+    const lines = info.text.split("\n");
+    const lineHeight = 18 / aspect_size; // Increased for better readability
+    const tooltipHeight = lines.length * lineHeight + padding * 3;
 
+    // Positioning logic (keep it on screen)
+    let tooltipX = info.x - tooltipWidth;
+    let tooltipY = info.y + (30 / aspect_size);
 
-    const displayWidth = vWidth / 3
-    const displayHeight = displayWidth * (4 / 5) // Maintains 5:4 ratio
+    ctx.save();
 
-    // Spacing between the two images
-    const spacing = vWidth * 0.1
+    // 1. Holographic Background
+    ctx.fillStyle = "rgba(10, 20, 40, 0.95)";
+    ctx.strokeStyle = "#00f2ff";
+    ctx.lineWidth = 1;
+
+    // Draw the main container
+    ctx.beginPath();
+    ctx.roundRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight, 4 / aspect_size);
+    ctx.fill();
+    ctx.stroke();
+
+    // 2. Header Bar
+    ctx.fillStyle = "rgba(0, 242, 255, 0.2)";
+    ctx.fillRect(tooltipX, tooltipY, tooltipWidth, 25 / aspect_size);
+
+    ctx.fillStyle = "#00f2ff";
+    ctx.font = `bold ${10 / aspect_size}px monospace`;
+    console.log(aspect_size)
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText("DATA_STREAMS // HELP_PROMPT", tooltipX + (10 / aspect_size), tooltipY + (12 / aspect_size));
+
+    // 3. Corner Accents (Brackets)
+    ctx.strokeStyle = "#00f2ff";
+    ctx.lineWidth = 3 / aspect_size;
+    const bLen = 10 / aspect_size;
+    // Bottom-Right Bracket
+    ctx.beginPath();
+    ctx.moveTo(tooltipX + tooltipWidth - bLen, tooltipY + tooltipHeight);
+    ctx.lineTo(tooltipX + tooltipWidth, tooltipY + tooltipHeight);
+    ctx.lineTo(tooltipX + tooltipWidth, tooltipY + tooltipHeight - bLen);
+    ctx.stroke();
+
+    // 4. Drawing the Text
+    ctx.fillStyle = "#f8fafc";
+    ctx.font = `${14 / aspect_size}px monospace`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+
+    lines.forEach((line, i) => {
+        // Adding a small bullet point for each line
+        ctx.fillStyle = "#00f2ff";
+        ctx.fillText(">", tooltipX + padding, tooltipY + (padding * 1.5) + i * lineHeight);
+
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillText(line, tooltipX + padding + 15, tooltipY + (padding * 1.5) + i * lineHeight);
+    });
+
+    ctx.restore();
+}
+
+function drawImages(vWidth, vHeight, aspect_size) {
+    const centerX = vWidth / 2;
+    const centerY = vHeight * 0.5;
+    const displayWidth = vWidth / 2.6;
+    const displayHeight = displayWidth * (4 / 5);
+    const spacing = vWidth * 0.07;
 
     currentImages.forEach((img, index) => {
-        // Calculate X position: one to the left, one to the right
-        const x = (index === 0)
-            ? centerX - spacing - displayWidth
-            : centerX + spacing
+        const x = (index === 0) ? centerX - spacing - displayWidth : centerX + spacing;
+        const y = centerY - (displayHeight / 2);
 
-        const y = centerY - (displayHeight / 2)
+        img.hitbox = {x, y, w: displayWidth, h: displayHeight};
 
-        img.hitbox = {x, y, w: displayWidth, h: displayHeight}
+        // 1. Draw "Analysis" Brackets
+        ctx.strokeStyle = "#00f2ff";
+        ctx.lineWidth = 2 / aspect_size;
+        const bLen = 15 / aspect_size; // Bracket length
 
-        // 1. Draw a "Cyber" Frame first
-        ctx.strokeStyle = "#00f2ff"
-        ctx.lineWidth = 3
-        ctx.strokeRect(x - 5, y - 5, displayWidth + 10, displayHeight + 10)
 
-        // 2. Draw the Image
-        // drawImage(image, x, y, width, height) automatically scales
-        // any image size down/up to fit your displayWidth/Height
+        // Top Left
+        ctx.beginPath();
+        ctx.moveTo(x - (8 / aspect_size), y - (8 / aspect_size) + bLen);
+        ctx.lineTo(x - (8 / aspect_size), y - (8 / aspect_size));
+        ctx.lineTo(x - (8 / aspect_size) + bLen, y - (8 / aspect_size));
+        ctx.stroke();
+        // Top Right
+        ctx.beginPath();
+        ctx.moveTo(x + displayWidth + (8 / aspect_size) - bLen, y - (8 / aspect_size));
+        ctx.lineTo(x + displayWidth + (8 / aspect_size), y - (8 / aspect_size));
+        ctx.lineTo(x + displayWidth + (8 / aspect_size), y - (8 / aspect_size) + bLen);
+        ctx.stroke();
+        // Bottom Left
+        ctx.beginPath();
+        ctx.moveTo(x - (8 / aspect_size), y + displayHeight + (8 / aspect_size) - bLen);
+        ctx.lineTo(x - (8 / aspect_size), y + displayHeight + (8 / aspect_size));
+        ctx.lineTo(x - (8 / aspect_size) + bLen, y + displayHeight + (8 / aspect_size));
+        ctx.stroke();
+        // Bottom Right
+        ctx.beginPath();
+        ctx.moveTo(x + displayWidth + (8 / aspect_size) - bLen, y + displayHeight + (8 / aspect_size));
+        ctx.lineTo(x + displayWidth + (8 / aspect_size), y + displayHeight + (8 / aspect_size));
+        ctx.lineTo(x + displayWidth + (8 / aspect_size), y + displayHeight + (8 / aspect_size) - bLen);
+        ctx.stroke();
+
+        // 2. Draw Image with a thin border
         if (img.complete) {
-            ctx.drawImage(img, x, y, displayWidth, displayHeight)
+            ctx.drawImage(img, x, y, displayWidth, displayHeight);
+            ctx.strokeStyle = "rgba(255,255,255,0.2)";
+            ctx.strokeRect(x, y, displayWidth, displayHeight);
         } else {
-            // Placeholder if image is still loading
-            ctx.fillStyle = "#1e293b"
-            ctx.fillRect(x, y, displayWidth, displayHeight)
+            ctx.fillStyle = "#1e293b";
+            ctx.fillRect(x, y, displayWidth, displayHeight);
         }
 
-        // Save these coordinates for the click listener
-        img.renderX = x
-        img.renderY = y
-        img.renderW = displayWidth
-        img.renderH = displayHeight
-    })
+        // 3. Cyber Label (e.g., "FILE_01", "FILE_02")
+
+        const font_size_scaled = Math.round(12 / aspect_size)
+        ctx.fillStyle = "#00f2ff";
+        ctx.font = `bold ${font_size_scaled}px monospace`;
+        ctx.textAlign = "center";
+        ctx.fillText(`ANALYZE_DATA_0${index + 1}`, x + displayWidth / 2, y + displayHeight + (25 / aspect_size));
+    });
 }
 
 function drawPasswords(vWidth, vHeight, aspect_size) {
-    ctx.save() // 1. Freeze current settings (Timer font, etc.)
-
-    const scaleFont = Math.round(PASSWORDS_FONT_SIZE / aspect_size)
-
-    ctx.font = `bold ${scaleFont}px Arial`
-    ctx.textAlign = "left"
-    ctx.textBaseline = "middle"
+    ctx.save();
+    const scaleFont = Math.round(PASSWORDS_FONT_SIZE / aspect_size);
+    ctx.font = `bold ${scaleFont}px monospace`; // Cyber standard
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
 
     passwordChoices.forEach((pw) => {
+        ctx.save()
+        // 1. Darker, more "LCD" background
+        ctx.fillStyle = "#0f172a";
+        ctx.strokeStyle = "#334155";
+        ctx.lineWidth = 1;
 
-        ctx.shadowColor = "rgba(0, 0, 0, 0.35)"
-        ctx.shadowBlur = 10
-        ctx.shadowOffsetY = 4
+        // Draw main box
+        ctx.beginPath();
+        ctx.roundRect(pw.x, pw.y, pw.width, pw.height, 4 / aspect_size);
+        ctx.fill();
+        ctx.stroke();
 
-        const gradient = ctx.createLinearGradient(
-            pw.x,
-            pw.y,
-            pw.x,
-            pw.y + pw.height
-        )
-        gradient.addColorStop(0, "#334155")
-        gradient.addColorStop(1, "#1e293b")
+        // 2. Neon "Side-Bar" accent (Vertical line on the left)
+        ctx.fillStyle = "#00f2ff";
+        ctx.fillRect(pw.x, pw.y, 4 / aspect_size, pw.height);
 
-        ctx.fillStyle = gradient
-        roundRect(pw.x, pw.y, pw.width, pw.height, 12, true, false)
+        // 3. Highlight Logic
+        let totalTextWidth = ctx.measureText(pw.text).width;
+        let startX = pw.x + (pw.width / 2) - (totalTextWidth / 2);
 
-        // Draw the border
-        ctx.strokeStyle = "#f8fafc"
-        ctx.lineWidth = 2
-        roundRect(pw.x, pw.y, pw.width, pw.height, 12, false, true)
-
-        // Highlight Logic
-        let totalTextWidth = ctx.measureText(pw.text).width
-        let startX = pw.x + (pw.width / 2) - (totalTextWidth / 2)
-
+        // Draw text with a subtle glow
+        ctx.shadowBlur = 8 / aspect_size;
         for (let char of pw.text) {
-            ctx.fillStyle = (SYMBOLS.includes(char) || !isNaN(parseInt(char)))
-                ? "#22c55e" : "#f8fafc"
-            ctx.fillText(char, startX, pw.y + pw.height / 2)
-            startX += ctx.measureText(char).width
+            const isSpecial = SYMBOLS.includes(char) || (char >= '0' && char <= '9');
+            ctx.fillStyle = isSpecial ? "#22c55e" : "#f8fafc";
+            ctx.shadowColor = isSpecial ? "#22c55e" : "transparent";
+
+            ctx.fillText(char, startX, pw.y + pw.height / 2);
+            startX += ctx.measureText(char).width;
         }
-
-    })
-
-    ctx.restore()
+        ctx.restore()
+    });
+    ctx.restore();
 }
 
 function gameLoop() {
@@ -945,85 +1090,133 @@ function wrapText(context, text, x, y, maxWidth, lineHeight) {
     }
 }
 
+function drawCutCornerRect(x, y, w, h, cut, stroke = true, fill = true) {
+    ctx.beginPath();
+    ctx.moveTo(x + cut, y);
+    ctx.lineTo(x + w - cut, y);
+    ctx.lineTo(x + w, y + cut);
+    ctx.lineTo(x + w, y + h - cut);
+    ctx.lineTo(x + w - cut, y + h);
+    ctx.lineTo(x + cut, y + h);
+    ctx.lineTo(x, y + h - cut);
+    ctx.lineTo(x, y + cut);
+    ctx.closePath();
+
+    if (fill) ctx.fill();
+    if (stroke) ctx.stroke();
+}
+
 function drawBonusRound(vWidth, vHeight, aspect_size) {
+    const q = bonusQuestions[bonusIndex];
 
-    const q = bonusQuestions[bonusIndex]
-    // console.log('new question')
+    // 1. Background (Dark Gradient for consistency)
+    const bgGrad = ctx.createRadialGradient(vWidth / 2, vHeight / 2, 10, vWidth / 2, vHeight / 2, vWidth);
+    bgGrad.addColorStop(0, "#0f172a");
+    bgGrad.addColorStop(1, "#020617");
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, vWidth, vHeight);
 
+    // 2. Header: "DECRYPTION_PHASE"
+    const header_y = 50 / aspect_size;
+    const headerFont = Math.round(BONUS_ROUND_HEADER_TEXT_FONT_SIZE / aspect_size);
 
-    const header_scaled_font_size = Math.round(BONUS_ROUND_HEADER_TEXT_FONT_SIZE / aspect_size)
-    const body_scaled_font_size = Math.round(BONUS_ROUND_BODY_TEXT_FONT_SIZE / aspect_size)
-    const score_scaled_font_size = Math.round(BONUS_ROUND_SCORE_TEXT_FONT_SIZE / aspect_size)
+    ctx.fillStyle = "#00f2ff"; // Cyber Cyan
+    ctx.textAlign = "center";
+    ctx.font = `bold ${headerFont}px monospace`;
+    ctx.fillText(`DECRYPTION_PHASE // [${bonusIndex + 1}/5]`, vWidth / 2, header_y);
 
-    const header_y = 60 / aspect_size
-    ctx.clearRect(0, 0, vWidth, vHeight)
+    // Subtle line under header
+    ctx.strokeStyle = "rgba(0, 242, 255, 0.3)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(vWidth * 0.2, header_y + (15 / aspect_size));
+    ctx.lineTo(vWidth * 0.8, header_y + (15 / aspect_size));
+    ctx.stroke();
 
-    ctx.fillStyle = "#e0f2fe"
-    ctx.textAlign = "center"
-    ctx.font = `bold ${header_scaled_font_size}px Arial`
-    ctx.fillText(`Bonus Question ${bonusIndex + 1} / 5`, vWidth / 2, header_y)
+    // 3. The Question Panel (Chamfered Box)
+    const cardWidth = vWidth * 0.85;
+    const cardHeight = 130 / aspect_size;
+    const cardX = (vWidth - cardWidth) / 2;
+    const cardY = 80 / aspect_size;
 
-    const cardWidth = vWidth * 0.8
-    const cardHeight = 120 / aspect_size
-    const cardX = (vWidth - cardWidth) / 2
-    const cardY = 90 / aspect_size
-    const cardBorderRadius = Math.round(16 / aspect_size)
+    // Panel Background
+    ctx.fillStyle = "rgba(30, 41, 59, 0.6)"; // Semi-transparent dark blue
+    ctx.strokeStyle = "#00f2ff";
+    ctx.lineWidth = 2;
+    drawCutCornerRect(cardX, cardY, cardWidth, cardHeight, 15 / aspect_size, true, true);
 
+    // "SYSTEM_QUERY" Label
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = `bold ${12 / aspect_size}px monospace`;
+    ctx.textAlign = "left";
+    ctx.fillText("SYSTEM_QUERY:", cardX + (10 / aspect_size), cardY + (20 / aspect_size));
 
-    ctx.strokeStyle = "#7dd3fc"
-    ctx.lineWidth = 3
-    roundRect(cardX, cardY, cardWidth, cardHeight, cardBorderRadius, false, true)
+    // The Actual Question Text
+    const bodyFont = Math.round(BONUS_ROUND_BODY_TEXT_FONT_SIZE / aspect_size);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `${bodyFont}px monospace`; // Monospace for terminal look
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
 
-
-    ctx.fillStyle = "#ffffff"
-    ctx.font = `bold ${body_scaled_font_size}px Arial`
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-
-    const padding = 40 / aspect_size
-    const lineHeight = body_scaled_font_size * 1.2
+    const padding = 40 / aspect_size;
+    const lineHeight = bodyFont * 1.3;
 
     wrapText(
         ctx,
         q.question,
         vWidth / 2,
-        cardY + (cardHeight / 2),
+        cardY + (cardHeight / 2) + (10 / aspect_size), // Slight offset due to "SYSTEM_QUERY" label
         cardWidth - padding,
         lineHeight
-    )
+    );
 
-    const optionWidth = vWidth * 0.65
-    const optionHeight = 50 / aspect_size
-    const startY = cardY + cardHeight + (40 / aspect_size)
-    const optionBorderRadius = Math.round(12 / aspect_size)
-    const optionGap = 16 / aspect_size
-
-    const x = (vWidth - optionWidth) / 2
+    // 4. The Options (Buttons)
+    const optionWidth = vWidth * 0.7;
+    const optionHeight = 55 / aspect_size;
+    const startY = cardY + cardHeight + (30 / aspect_size);
+    const optionGap = 18 / aspect_size;
+    const x = (vWidth - optionWidth) / 2;
 
     q.options.forEach((opt, i) => {
+        const y = startY + i * (optionHeight + optionGap);
+        const isSelected = selectedOption === i;
 
-        const y = startY + i * (optionHeight + optionGap)
+        // Button Styles
+        ctx.lineWidth = 2 / aspect_size;
+        if (isSelected) {
+            // Selected: Green Glow
+            ctx.shadowBlur = 15 / aspect_size;
+            ctx.shadowColor = "#22c55e";
+            ctx.fillStyle = "rgba(34, 197, 94, 0.2)"; // Low opacity green fill
+            ctx.strokeStyle = "#22c55e";
+        } else {
+            // Default: Dark Tech
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = "rgba(15, 23, 42, 0.8)";
+            ctx.strokeStyle = "#475569"; // Slate border
+        }
 
-        // Background
-        ctx.fillStyle =
-            selectedOption === i ? "#22c55e" : "#1e293b"
-        roundRect(x, y, optionWidth, optionHeight, optionBorderRadius, true, false)
+        // Draw Chamfered Button
+        drawCutCornerRect(x, y, optionWidth, optionHeight, 10 / aspect_size, true, true);
+        ctx.shadowBlur = 0; // Reset glow for text
 
-        // Border
-        ctx.strokeStyle = "#64748b"
-        ctx.lineWidth = 2
-        roundRect(x, y, optionWidth, optionHeight, optionBorderRadius, false, true)
+        // Text
+        ctx.fillStyle = isSelected ? "#ffffff" : "#cbd5f5";
+        ctx.font = `bold ${bodyFont * 0.9}px monospace`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
 
-        // Option text
-        ctx.fillStyle = "#f8fafc"
-        ctx.font = `bold ${body_scaled_font_size * 0.8}px Arial`
-        ctx.fillText(opt, vWidth / 2, y + optionHeight / 2)
-    })
+        // Add a "Code" prefix (A:, B:, C:)
+        const prefix = String.fromCharCode(65 + i); // 65 is 'A'
+        ctx.fillText(`[${prefix}] ${opt}`, vWidth / 2, y + optionHeight / 2);
+    });
 
-    /* ---------- SCORE ---------- */
-    ctx.fillStyle = "#cbd5f5"
-    ctx.font = `bold ${score_scaled_font_size}px Arial`
-    ctx.fillText(`Score: ${bonusScore}`, vWidth / 2, vHeight - 30)
+    // 5. Score Readout (Bottom HUD)
+    const scoreFont = Math.round(BONUS_ROUND_SCORE_TEXT_FONT_SIZE / aspect_size);
+    ctx.fillStyle = "#00f2ff";
+    ctx.textAlign = "center";
+    ctx.font = `bold ${scoreFont}px monospace`;
+    ctx.fillText(`DATA_RECOVERED: ${bonusScore}`, vWidth / 2, vHeight - (20 / aspect_size));
 }
 
 function handleImageChoice(img) {
@@ -1099,7 +1292,7 @@ function endBonusRound() {
     bonusActive = false
 
     if (bonusScore >= 3) {
-        resetMainGame()
+        startMiniGame()
     } else {
         gamePhase = FINAL_GAME_OVER_PHASE
     }
@@ -1161,17 +1354,19 @@ canvas.addEventListener("click", (e) => {
 
     const aspect_size = 900 / vWidth
 
-    const cardHeight = 120 / aspect_size
-    const cardY = 90 / aspect_size
+    const cardWidth = vWidth * 0.85;
+    const cardHeight = 130 / aspect_size;
+    const cardX = (vWidth - cardWidth) / 2;
+    const cardY = 80 / aspect_size;
 
-    const optionWidth = vWidth * 0.65
-    const optionHeight = 50 / aspect_size
-    const startY = cardY + cardHeight + (40 / aspect_size)
-    const optionGap = 16 / aspect_size
+    const optionWidth = vWidth * 0.7;
+    const optionHeight = 55 / aspect_size;
+    const startY = cardY + cardHeight + (30 / aspect_size);
+    const optionGap = 18 / aspect_size;
 
     const optionX = (vWidth - optionWidth) / 2
 
-    if (gamePhase === FINAL_GAME_OVER_PHASE && window.restartButton) {
+    if (gamePhase === FINAL_GAME_OVER_PHASE && restartButton) {
         if (
             isInside(
                 mx,
@@ -1182,17 +1377,15 @@ canvas.addEventListener("click", (e) => {
                 restartButton.h
             )
         ) {
-               // resetMainGame()// restart igra
+            // resetMainGame()// restart igra
 
-            canvas.style.display = 'none'
-            canvas2D.style.display="block"
-            Loop()
+            startMiniGame()
         }
     }
 
-    if(gamePhase === BONUS_ROUND_PHASE){
+    if (gamePhase === BONUS_ROUND_PHASE) {
         bonusQuestions[bonusIndex].options.forEach((_, i) => {
-            const optionY = startY + (i * (optionHeight + optionGap))
+            const optionY = startY + i * (optionHeight + optionGap);
 
             if (
                 mx >= optionX &&
@@ -1208,11 +1401,11 @@ canvas.addEventListener("click", (e) => {
 
     if (gamePhase === RETRY_PROMPT_PHASE) {
 
-        const buttonW = vWidth / 6
-        const buttonH = vHeight / 8
-        const button_spacing = vWidth / 10
+        const buttonW = vWidth * 0.35;
+        const buttonH = Math.round(60 / aspect_size);
+        const button_spacing = Math.round(20 / aspect_size);
 
-        if (isInside(mx, my, vWidth / 2 - (button_spacing + buttonW), vHeight * 0.56, buttonW, buttonH)) {
+        if (isInside(mx, my, vWidth / 2 - buttonW - button_spacing, vHeight * 0.56, buttonW, buttonH)) {
             //to do
             console.log('try again clicked')
             startBonusRound()
@@ -1243,30 +1436,10 @@ canvas.addEventListener("click", (e) => {
     }
 })
 
-// canvas.addEventListener("mousemove", (e) => {
-//     const rect = canvas.getBoundingClientRect()
-//     const mouseX = e.clientX - rect.left
-//     const mouseY = e.clientY - rect.top
-//
-//     const dx = mouseX - info.x
-//     const dy = mouseY - info.y
-//
-//     const wasHovering = info.hover;
-//     info.hover = Math.sqrt(dx * dx + dy * dy) <= info.radius
-//
-//     if (wasHovering && !info.hover) {
-//         lastTime = Date.now();
-//     }
-//
-// })
-
 
 /*
 * TODO
 *
-* Start minigame fix
-* After death minigame fix
 * Win Minigame fix
-* Fix buttons Try again...
 *
 * */
