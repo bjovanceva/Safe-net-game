@@ -260,28 +260,31 @@ function startGame() {
     gameLoop()
 }
 
-function resizeMiniGameCanvas(canvas, ctx, game, displayWidth, displayHeight, dpr) {
+export function resizeMiniGameCanvas(canvas, ctx, game, displayWidth, displayHeight, dpr) {
 
-    // internal resolution (Hi-DPI safe)
-    canvas.width = displayWidth * dpr
-    canvas.height = displayHeight * dpr
+    const BASE_WIDTH = 600;
+    const zoom = Math.max(0.5, displayWidth / BASE_WIDTH);
 
-    // visual size
-    canvas.style.width = displayWidth + "px"
-    canvas.style.height = displayHeight + "px"
 
-    // viewport for Clarity camera
+    canvas.width = displayWidth * dpr;
+    canvas.height = displayHeight * dpr;
+
+    canvas.style.width = displayWidth + "px";
+    canvas.style.height = displayHeight + "px";
+
     game.set_viewport(
-        canvas.width / dpr,
-        canvas.height / dpr
-    )
+        (canvas.width / dpr) / zoom,
+        (canvas.height / dpr) / zoom
+    );
 
-    // reset & scale context
-    ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.scale(dpr, dpr)
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr * zoom, dpr * zoom);
 
-    // pixel-perfect
-    ctx.imageSmoothingEnabled = false
+    ctx.imageSmoothingEnabled = false;
+
+    if (game.current_map) {
+        game.force_camera_center();
+    }
 }
 
 function randomChar(type) {
@@ -1354,9 +1357,7 @@ canvas.addEventListener("click", (e) => {
 
     const aspect_size = 900 / vWidth
 
-    const cardWidth = vWidth * 0.85;
     const cardHeight = 130 / aspect_size;
-    const cardX = (vWidth - cardWidth) / 2;
     const cardY = 80 / aspect_size;
 
     const optionWidth = vWidth * 0.7;
