@@ -80,13 +80,6 @@ let restartButton = null
 
 const bonusQuestions = questions
 
-function shuffleArray(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]]
-    }
-}
-
 const info = {
     x: canvas.width - 40,
     y: 40,
@@ -130,9 +123,7 @@ const MAX_IMAGES_TO_CHECK_BAD = 8
 
 
 
-const {game: game,canvas: canvas2D, ctx: ctx2D, StartGame} = Game2D(endMiniGame)
-
-canvas2D.style.display = 'none';
+const {game: game,canvas: canvas2D, ctx: ctx2D, StartMiniGame} = Game2D(endMiniGame)
 
 /**
  * TODO - Function Definition Logic Here
@@ -250,6 +241,13 @@ function resizeCanvas() {
     draw()
 }
 
+function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]]
+    }
+}
+
 function startGame() {
     gamePhase = PLAYING_PHASE
     score = 0
@@ -265,6 +263,11 @@ export function resizeMiniGameCanvas(canvas, ctx, game, displayWidth, displayHei
     const BASE_WIDTH = 600;
     const zoom = Math.max(0.5, displayWidth / BASE_WIDTH);
 
+    const controls = document.getElementById('mobile-controls');
+    if (controls) {
+        // This passes the JS number to the CSS --ui-scale variable
+        controls.style.setProperty('--ui-scale', zoom+"");
+    }
 
     canvas.width = displayWidth * dpr;
     canvas.height = displayHeight * dpr;
@@ -401,11 +404,13 @@ function roundRect(x, y, w, h, r, fill, stroke) {
 function startMiniGame() {
     canvas.style.display = 'none'
     canvas2D.style.display = "block"
-    game.running = true
 
     gameRunning = false
 
-    StartGame()
+    initTouchControlsIfMobile(game)
+    game.running = true
+
+    StartMiniGame()
 }
 
 function endMiniGame() {
@@ -413,6 +418,11 @@ function endMiniGame() {
     canvas2D.style.display = "none"
 
     game.running = false
+    const controls = document.getElementById('mobile-controls');
+    if (controls) {
+        controls.remove(); // Completely removes the elements from the DOM
+    }
+
     minScore = 10
     successSequence = 0
     startGame()
@@ -1314,6 +1324,85 @@ function startBonusRound() {
     timeLeft = Infinity
 }
 
+function setupMobileControls(game) {
+    // 1. Check if controls already exist to avoid duplicates
+    if (document.getElementById('mobile-controls')) return;
+
+    // 2. Create the HTML structure
+    const overlay = document.createElement('div');
+    overlay.id = 'mobile-controls';
+    overlay.innerHTML = `
+        <div class="d-pad">
+            <div class="cyber-btn btn-arrow" data-key="left">←</div>
+            <div class="cyber-btn btn-arrow" data-key="right">→</div>
+        </div>
+        <div class="action-pad">
+            <div class="cyber-btn btn-jump" data-key="up">▲</div>
+        </div>
+    `;
+
+    // Append to the document body (or your game container)
+    document.body.appendChild(overlay);
+
+    // 3. Helper to handle input state
+    const setKey = (key, state) => {
+        if (game && game.key) {
+            game.key[key] = state;
+        }
+    };
+
+    // 4. Bind Events (Touch and Mouse for testing)
+    const buttons = overlay.querySelectorAll('.cyber-btn');
+
+    buttons.forEach(btn => {
+        const key = btn.getAttribute('data-key');
+
+        // Touch Start
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Stop scrolling/zooming
+            btn.classList.add('pressed'); // Visual feedback
+            setKey(key, true);
+        }, { passive: false });
+
+        // Touch End
+        btn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            btn.classList.remove('pressed');
+            setKey(key, false);
+        });
+
+        // Mouse Down (for testing on PC without keyboard)
+        btn.addEventListener('mousedown', (e) => {
+            btn.classList.add('pressed');
+            setKey(key, true);
+        });
+
+        // Mouse Up / Leave
+        btn.addEventListener('mouseup', () => {
+            btn.classList.remove('pressed');
+            setKey(key, false);
+        });
+        btn.addEventListener('mouseleave', () => {
+            btn.classList.remove('pressed');
+            setKey(key, false);
+        });
+    });
+}
+
+function initTouchControlsIfMobile(game) {
+
+    const isTouchDevice = (
+        'ontouchstart' in window ||
+        navigator.maxTouchPoints > 0 ||
+        navigator.msMaxTouchPoints > 0
+    );
+
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (isTouchDevice || isMobileUA) {
+        setupMobileControls(game);
+    }
+}
 
 /**
  * TODO - Execution Logic Here
@@ -1321,6 +1410,7 @@ function startBonusRound() {
  * Од оваа линија надолу повикување и извршување на функции
  * */
 
+canvas2D.style.display = 'none';
 
 // Start the loading process immediately
 loadGameImages()
