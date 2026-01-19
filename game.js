@@ -57,7 +57,7 @@ let notSafePasswords = []
 
 let currentRoundMode = PASSWORDS_MODE
 
-const gameDuration = 2
+const gameDuration = 20
 const ROUND_DURATION = 5
 
 let timeElapsed = 0

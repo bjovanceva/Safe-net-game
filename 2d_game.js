@@ -172,7 +172,7 @@ export function Game2D(endGameFunc) {
                 change_colour: 'game.player.colour = "#"+(Math.random()*0xFFFFFF<<0).toString(16);',
                 /* you could load a new map variable here */
                 // next_level: 'alert("Yay! You won! Reloading map.");game.load_map(map);',
-                next_level: 'alert("Yay! You won! Reloading map.");game.running=false;setTimeout(StartMiniGame,200)',
+                next_level: 'alert("Yay! You won! Reloading map.");game.running=false; setTimeout(StartMiniGame,200);',
                 // death: 'alert("You died!");game.load_map(map);',
                 death: 'alert("You died!");endGameFunc();',
                 unlock: 'game.current_map.keys[10].solid = 0;game.current_map.keys[10].colour = "#888";'
