@@ -838,7 +838,7 @@ export function Game2D(endGameFunc) {
         window.requestAnimFrame(Loop);
     };
 
-    const StartGame = function () {
+    const StartMiniGame = function () {
 
         centeredCamera = false
 
@@ -862,7 +862,7 @@ export function Game2D(endGameFunc) {
         canvas,
         ctx,
         game,
-        StartGame
+        StartMiniGame: StartMiniGame
     }
 }
 
