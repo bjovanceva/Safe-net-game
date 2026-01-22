@@ -24,13 +24,21 @@ THE SOFTWARE.
 
 
 import {resizeMiniGameCanvas} from "./game.js";
+import {resetMainGame} from "./game.js";
 
 export function Game2D(endGameFunc) {
+
+    let happyEnd = false;
+
+    window.setHappyEndTrue = function () {
+        happyEnd = true;
+    };
 
     function getFreshMap() {
         return {
 
             tile_size: 16,
+
 
             /*
 
@@ -172,7 +180,8 @@ export function Game2D(endGameFunc) {
                 change_colour: 'game.player.colour = "#"+(Math.random()*0xFFFFFF<<0).toString(16);',
                 /* you could load a new map variable here */
                 // next_level: 'alert("Yay! You won! Reloading map.");game.load_map(map);',
-                next_level: 'alert("Yay! You won! Reloading map.");game.running=false; setTimeout(StartMiniGame,200);',
+                // next_level: 'alert("Yay! You won! Reloading map.");game.running=false; setTimeout(StartMiniGame,200);',
+                next_level: 'alert("Yay! You won! Reloading map."); setHappyEndTrue(); endGameFunc();',
                 // death: 'alert("You died!");game.load_map(map);',
                 death: 'alert("You died!");endGameFunc();',
                 unlock: 'game.current_map.keys[10].solid = 0;game.current_map.keys[10].colour = "#888";'
@@ -667,6 +676,7 @@ export function Game2D(endGameFunc) {
 
     let game = new Clarity();
 
+
     let centeredCamera = false
 
     const Loop = function () {
@@ -713,7 +723,9 @@ export function Game2D(endGameFunc) {
         canvas,
         ctx,
         game,
-        StartMiniGame: StartMiniGame
+        StartMiniGame: StartMiniGame,
+        isHappyEnd: () => happyEnd
+
     }
 }
 

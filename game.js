@@ -62,6 +62,7 @@ const ROUND_DURATION = 5
 
 let timeElapsed = 0
 let gameEnded = false
+let isMiniGameFinished = false
 
 
 let gamePhase = PLAYING_PHASE // playing | success | retryPrompt | bonusRound | finalGameOver
@@ -123,7 +124,7 @@ const MAX_IMAGES_TO_CHECK_BAD = 8
 
 
 
-const {game: game,canvas: canvas2D, ctx: ctx2D, StartMiniGame} = Game2D(endMiniGame)
+const {game: game,canvas: canvas2D, ctx: ctx2D, StartMiniGame, isHappyEnd } = Game2D(endMiniGame)
 
 /**
  * TODO - Function Definition Logic Here
@@ -250,7 +251,9 @@ function shuffleArray(arr) {
 
 function startGame() {
     gamePhase = PLAYING_PHASE
-    score = 0
+    if(!isMiniGameFinished){
+        score = 0
+    }
     gameRunning = true
     gameEnded = false
     timeElapsed = 0
@@ -425,6 +428,13 @@ function endMiniGame() {
 
     minScore = 10
     successSequence = 0
+    isMiniGameFinished = true
+    let isHappy=isHappyEnd();
+    console.log("HappyEnd")
+    console.log(isHappy)
+    if(isHappy){
+        score+=10
+    }
     startGame()
 }
 
@@ -437,7 +447,6 @@ function update() {
     if (info.hover) return;
 
     if (gamePhase === BONUS_ROUND_PHASE) {
-        // minScore += 10
         return
     }
 
@@ -479,7 +488,7 @@ function update() {
     }
 }
 
-function resetMainGame() {
+export function resetMainGame() {
     timeElapsed = 0
     gameRunning = true
     gamePhase = PLAYING_PHASE
@@ -494,7 +503,6 @@ function drawTotalTimer(vWidth, vHeight, aspect_size) {
 
     ctx.save()
     ctx.font = `bold ${font_size}px monospace`
-    // Draw the "Time Remaining" text at the bottom
     const remaining = Math.max(0, Math.ceil(gameDuration - timeElapsed))
     ctx.fillStyle = "#f6f3f3"
     ctx.textAlign = "center"
@@ -507,7 +515,6 @@ function drawTotalTimer(vWidth, vHeight, aspect_size) {
  * of screens having higher DPI so canvas needs to be scaled
  * */
 function draw() {
-    // These are your "Game World" dimensions
     const vWidth = canvas.width / dpr
     const vHeight = canvas.height / dpr
 
@@ -1026,10 +1033,11 @@ function drawPasswords(vWidth, vHeight, aspect_size) {
         // Draw text with a subtle glow
         ctx.shadowBlur = 8 / aspect_size;
         for (let char of pw.text) {
-            const isSpecial = SYMBOLS.includes(char) || (char >= '0' && char <= '9');
-            ctx.fillStyle = isSpecial ? "#22c55e" : "#f8fafc";
-            ctx.shadowColor = isSpecial ? "#22c55e" : "transparent";
+            // const isSpecial = SYMBOLS.includes(char) || (char >= '0' && char <= '9');
+            // ctx.fillStyle = isSpecial ? "#22c55e" : "#f8fafc";
+            // ctx.shadowColor = isSpecial ? "#22c55e" : "transparent";
 
+            ctx.fillStyle = "#f8fafc";
             ctx.fillText(char, startX, pw.y + pw.height / 2);
             startX += ctx.measureText(char).width;
         }
@@ -1047,22 +1055,22 @@ function gameLoop() {
 
 function handlePasswordChoice(text) {
 
-    if (gamePhase === BONUS_ROUND_PHASE) {
-        bonusQuestionsAnswered++
-
-        if (reallySafePasswords.includes(text)) bonusScore += 1
-
-        if (bonusQuestionsAnswered >= 5) {
-            if (bonusScore >= 3) {
-                resetMainGame()
-            } else {
-                gamePhase = FINAL_GAME_OVER_PHASE
-            }
-        } else {
-            spawnTwoPasswords()
-        }
-        return
-    }
+    // if (gamePhase === BONUS_ROUND_PHASE) {
+    //     bonusQuestionsAnswered++
+    //
+    //     if (reallySafePasswords.includes(text)) bonusScore += 1
+    //
+    //     if (bonusQuestionsAnswered >= 5) {
+    //         if (bonusScore >= 3) {
+    //             resetMainGame()
+    //         } else {
+    //             gamePhase = FINAL_GAME_OVER_PHASE
+    //         }
+    //     } else {
+    //         spawnTwoPasswords()
+    //     }
+    //     return
+    // }
 
     if (reallySafePasswords.includes(text)) {
         score += 2
@@ -1304,9 +1312,15 @@ function handleBonusAnswer(index) {
 function endBonusRound() {
     bonusActive = false
 
-    if (bonusScore >= 3) {
+    if (bonusScore >= 3 && bonusScore < 5) {
+        score+=bonusScore;
+        resetMainGame()
+    }
+    else if(bonusScore === 5){
+        score+=bonusScore;
         startMiniGame()
-    } else {
+    }
+    else {
         gamePhase = FINAL_GAME_OVER_PHASE
     }
 }
@@ -1468,9 +1482,10 @@ canvas.addEventListener("click", (e) => {
                 restartButton.h
             )
         ) {
-            // resetMainGame()// restart igra
+            score = 0
+            resetMainGame() // restart igra
 
-            startMiniGame()
+            // startMiniGame()
         }
     }
 
