@@ -6,6 +6,7 @@
 
 
 import questions from "./data/questions.js"
+import images_description from "./data/images_description.js";
 import {WEAK_PASSWORDS} from "./data/weak_passwords.js"
 
 import {Game2D} from "./2d_game.js"
@@ -147,6 +148,13 @@ function loadImage(src) {
         img.onload = () => resolve(img);
         img.onerror = () => reject(new Error(`Failed to load: ${src}`));
         img.src = src;
+
+        const key = src
+            .split("/")
+            .pop()
+            .replace(".jpg", "");
+
+        img.description = images_description[key];
     });
 }
 
@@ -167,6 +175,8 @@ async function loadGameImages() {
 
     safeImages.length = 0;
     unsafeImages.length = 0;
+
+    // console.log(safeResults[0].value.description)
 
     for (const r of safeResults) if (r.status === "fulfilled") safeImages.push(r.value);
     for (const r of unsafeResults) if (r.status === "fulfilled") unsafeImages.push(r.value);
@@ -934,6 +944,17 @@ function drawInfoPopup(vWidth, aspect_size) {
     ctx.restore();
 }
 
+function splitTextThreeLines(text) {
+    const words = text.split(" ");
+    const third = Math.ceil(words.length / 3);
+
+    const line1 = words.slice(0, third).join(" ");
+    const line2 = words.slice(third, third * 2).join(" ");
+    const line3 = words.slice(third * 2).join(" ");
+
+    return [line1, line2, line3];
+}
+
 function drawImages(vWidth, vHeight, aspect_size) {
     const centerX = vWidth / 2;
     const centerY = vHeight * 0.5;
@@ -987,12 +1008,51 @@ function drawImages(vWidth, vHeight, aspect_size) {
             ctx.fillRect(x, y, displayWidth, displayHeight);
         }
 
-
         const font_size_scaled = Math.round(12 / aspect_size)
+
+
+        // ctx.fillStyle = "#00f2ff";
+        // ctx.font = `13px monospace`;
+        // ctx.textAlign = "center";
+        // // ctx.fillText(`ANALYZE_DATA_0${index + 1}`, x + displayWidth / 2, y + displayHeight + (25 / aspect_size));
+        // const lines = splitTextTwoLines(img.description);
+        // const lineHeight = font_size_scaled + 4; // spacing between lines
+        //
+        // lines.forEach((line, i) => {
+        //     ctx.fillText(line, x + displayWidth / 2, y + displayHeight + (25 / aspect_size) + i * lineHeight);
+        // });
+        const framePaddingX = 20 / aspect_size; // extra width
+        const framePaddingY = 15 / aspect_size; // extra height
+
+        const descWidth = displayWidth + 2 * framePaddingX;   // wider than image
+        const descHeight = font_size_scaled * 2 + 2 * framePaddingY; // taller to fit 2 lines + padding
+
+
+        const descX = x - framePaddingX; // shift left to center the wider frame
+        const descY = y + displayHeight + (15 / aspect_size); // slightly below image
+
+
+        ctx.lineWidth = 2 / aspect_size;
+        ctx.shadowBlur = 10 / aspect_size;
+        ctx.shadowColor = "#00f2ff";
+
+        ctx.fillStyle = "rgba(15,23,42,0.9)"; // dark background
+        ctx.strokeStyle = "#00f2ff";           // border color
+        drawCutCornerRect(descX, descY, descWidth, descHeight, 10 / aspect_size, true, true);
+        ctx.shadowBlur = 0;
+
+
         ctx.fillStyle = "#00f2ff";
-        ctx.font = `bold ${font_size_scaled}px monospace`;
+        ctx.font = `${font_size_scaled}px monospace`;
         ctx.textAlign = "center";
-        ctx.fillText(`ANALYZE_DATA_0${index + 1}`, x + displayWidth / 2, y + displayHeight + (25 / aspect_size));
+        ctx.textBaseline = "middle";
+
+        const lines = splitTextThreeLines(img.description);
+        const lineHeight = font_size_scaled + 4;
+
+        lines.forEach((line, i) => {
+            ctx.fillText(line, descX + descWidth / 2, descY + framePaddingY + i * lineHeight);
+        });
     });
 }
 
