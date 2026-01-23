@@ -1289,7 +1289,7 @@ function endBonusRound() {
     if (bonusScore >= 3 && bonusScore < 5) {
         score += bonusScore;
         resetMainGame()
-    } else if (bonusScore === 0) {
+    } else if (bonusScore === 5) {
         score += bonusScore;
         startMiniGame()
     } else {
