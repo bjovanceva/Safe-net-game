@@ -7,6 +7,7 @@ const images_description={
     good5_final: "A 'Secure VPN' application showing a connected and encrypted status with a disconnect option",
     good6_final: "Reporting an email from 'support@paypal-verify.com' with an urgent message to claim a free gift and a link",
     good7_final: "A system permission prompt from the Instagram app requesting access to user's device's contacts and location, with 'Deny' selected",
+    good8_final: "Deleting a social media friend request from unknown 'Alex J.' with three mutual friends",
 
     bad1_final: "A social media interface prompting the user to share a post publicly",
     bad2_final: "An email claiming an account has been suspended and urging the recipient to click a 'VERIFY NOW' link",
@@ -16,6 +17,8 @@ const images_description={
     bad6_final: "Visiting a link through a notification that warns a suspicious link has been detected",
     bad7_final: "Allowing 'FotoFunApp' to access the device’s contact list and location data",
     bad8_final: "An email from 'Your Mailchimp Account' that warns of a suspicious login and urges the user to reactivate the account by clicking a link",
+    bad9_final: "A smartphone displays an 'Order Update' notification that includes a specific order number, text and a blue button to view order details",
+    bad10_final: "Accepting a social media friend request from unknown 'Emilia K.' with two mutual friends",
 }
 
 export default images_description;

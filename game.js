@@ -128,8 +128,8 @@ const unsafeImages = []
 
 // How many images to try loading (e.g., checks good1_final up to good20_final)
 // You can increase this number as you add more images to your folder.
-const MAX_IMAGES_TO_CHECK_GOOD = 7
-const MAX_IMAGES_TO_CHECK_BAD = 8
+const MAX_IMAGES_TO_CHECK_GOOD = 8
+const MAX_IMAGES_TO_CHECK_BAD = 10
 
 
 const {game: game, canvas: canvas2D, ctx: ctx2D, StartMiniGame, isHappyEnd} = Game2D(endMiniGame)
@@ -182,6 +182,8 @@ async function loadGameImages() {
     for (const r of unsafeResults) if (r.status === "fulfilled") unsafeImages.push(r.value);
 
     // Hard requirement: must have at least 1 of each
+    console.log(safeImages.length)
+    console.log(unsafeImages.length)
     if (safeImages.length === 0 || unsafeImages.length === 0) {
         throw new Error("Not enough images loaded (need at least 1 safe and 1 unsafe).");
     }
