@@ -9,6 +9,7 @@ import questions from "./data/questions.js"
 import {WEAK_PASSWORDS} from "./data/weak_passwords.js"
 
 import {Game2D} from "./2d_game.js"
+import {resizeMiniGameCanvas} from "./resizeMiniGame.js";
 
 const startScreen = document.getElementById("start-screen")
 const startBtn = document.getElementById("start-btn")
@@ -36,12 +37,14 @@ const SUCCESS_PHASE = "success"
 const RETRY_PROMPT_PHASE = "retryPrompt"
 const BONUS_ROUND_PHASE = "bonusRound"
 const FINAL_GAME_OVER_PHASE = "finalGameOver"
-const MINI_GAME_PHASE = "miniGame"
+// const MINI_GAME_PHASE = "miniGame"
 
 const SYMBOLS = "!@#$%&*"
 
 const PASSWORDS_MODE = "passwords"
 const IMAGES_MODE = "images"
+
+let mainRafId = null;
 
 let score = 0
 let gameRunning = false
@@ -62,6 +65,7 @@ const ROUND_DURATION = 5
 
 let timeElapsed = 0
 let gameEnded = false
+
 let isMiniGameFinished = false
 
 
@@ -69,11 +73,15 @@ let gamePhase = PLAYING_PHASE // playing | success | retryPrompt | bonusRound | 
 
 let phaseTimer = 0
 
-let bonusQuestionsAnswered = 0
+// let bonusQuestionsAnswered = 0
 let bonusIndex = 0
 let bonusScore = 0
-let selectedOption = null
 let bonusActive = true
+
+let bonusLocked = false;
+let bonusTimeoutId = null;
+
+let selectedOption = null
 let minScore = 10
 let successSequence = 0
 
@@ -85,7 +93,7 @@ const info = {
     x: canvas.width - 40,
     y: 40,
     radius: 18,
-    hover: false,
+    open: false,
     visible: true,
     text: `A password is SAFE if it meets ALL of 
 these rules:
@@ -123,8 +131,7 @@ const MAX_IMAGES_TO_CHECK_GOOD = 7
 const MAX_IMAGES_TO_CHECK_BAD = 8
 
 
-
-const {game: game,canvas: canvas2D, ctx: ctx2D, StartMiniGame, isHappyEnd } = Game2D(endMiniGame)
+const {game: game, canvas: canvas2D, ctx: ctx2D, StartMiniGame, isHappyEnd} = Game2D(endMiniGame)
 
 /**
  * TODO - Function Definition Logic Here
@@ -132,34 +139,41 @@ const {game: game,canvas: canvas2D, ctx: ctx2D, StartMiniGame, isHappyEnd } = Ga
  * Од оваа линија надолу дефинирање на функции
  * */
 
+
 //Function that loads images and stores them in the arrays as 'Image' objects
-function loadGameImages() {
+function loadImage(src) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error(`Failed to load: ${src}`));
+        img.src = src;
+    });
+}
 
-    // Cycle for loading and saving bad images to array
+async function loadGameImages() {
+    const safeSources = [];
+    const unsafeSources = [];
+
+    for (let i = 1; i <= MAX_IMAGES_TO_CHECK_GOOD; i++) {
+        safeSources.push(`images/safe/good${i}_final.jpg`);
+    }
     for (let i = 1; i <= MAX_IMAGES_TO_CHECK_BAD; i++) {
-        // --- Try to load UNSAFE images ---
-        const uImg = new Image()
-        uImg.src = `images/unsafe/bad${i}_final.jpg`
-
-        uImg.onload = () => {
-            unsafeImages.push(uImg)
-        }
+        unsafeSources.push(`images/unsafe/bad${i}_final.jpg`);
     }
 
-    // Cycle for loading and saving good images to array
-    for (let i = 1; i <= MAX_IMAGES_TO_CHECK_GOOD; i++) {
+    // Load all, but don’t die if some fail
+    const safeResults = await Promise.allSettled(safeSources.map(loadImage));
+    const unsafeResults = await Promise.allSettled(unsafeSources.map(loadImage));
 
-        // --- Try to load SAFE images ---
-        const sImg = new Image()
-        // Construct the path: images/safe/good[i]_final.jpg
-        sImg.src = `images/safe/good${i}_final.jpg`
+    safeImages.length = 0;
+    unsafeImages.length = 0;
 
-        // Only add to the game array if the file actually exists and loads
-        sImg.onload = () => {
-            safeImages.push(sImg)
-        }
-        // Optional: If you use .png instead of .jpg for some, 
-        // you would need a more complex loader or ensure all are converted to .jpg
+    for (const r of safeResults) if (r.status === "fulfilled") safeImages.push(r.value);
+    for (const r of unsafeResults) if (r.status === "fulfilled") unsafeImages.push(r.value);
+
+    // Hard requirement: must have at least 1 of each
+    if (safeImages.length === 0 || unsafeImages.length === 0) {
+        throw new Error("Not enough images loaded (need at least 1 safe and 1 unsafe).");
     }
 }
 
@@ -175,11 +189,9 @@ function resizeCanvas() {
     if (widthByWidth > 900) widthByWidth = 900
     let heightByWidth = widthByWidth / aspectRatio
 
-    // 2. Calculate size based on Height
     let heightByHeight = window.innerHeight * (maxHeightVH / 100)
     let widthByHeight = heightByHeight * aspectRatio
 
-    // 3. Pick the smaller one so it fits both ways
     let displayWidth, displayHeight
     if (widthByHeight <= widthByWidth) {
         displayWidth = widthByHeight
@@ -189,16 +201,14 @@ function resizeCanvas() {
         displayHeight = heightByWidth
     }
 
-    // Set internal resolution (High-DPI)
+
     canvas.width = displayWidth * dpr
     canvas.height = displayHeight * dpr
 
-    // Set CSS display size (Visual size)
+
     canvas.style.width = displayWidth + "px"
     canvas.style.height = displayHeight + "px"
 
-
-    // Reset and scale
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
 
@@ -212,7 +222,7 @@ function resizeCanvas() {
         dpr
     )
 
-    // Adjust top area and UI positions
+
     topArea.style.height = "10vh" // Use vh for consistency
 
     info.x = displayWidth - (displayWidth / 30)
@@ -251,47 +261,16 @@ function shuffleArray(arr) {
 
 function startGame() {
     gamePhase = PLAYING_PHASE
-    if(!isMiniGameFinished){
+    if (!isMiniGameFinished) {
         score = 0
     }
     gameRunning = true
     gameEnded = false
     timeElapsed = 0
     startNewRound()
-    gameLoop()
+    startMainLoop()
 }
 
-export function resizeMiniGameCanvas(canvas, ctx, game, displayWidth, displayHeight, dpr) {
-
-    const BASE_WIDTH = 600;
-    const zoom = Math.max(0.5, displayWidth / BASE_WIDTH);
-
-    const controls = document.getElementById('mobile-controls');
-    if (controls) {
-        // This passes the JS number to the CSS --ui-scale variable
-        controls.style.setProperty('--ui-scale', zoom+"");
-    }
-
-    canvas.width = displayWidth * dpr;
-    canvas.height = displayHeight * dpr;
-
-    canvas.style.width = displayWidth + "px";
-    canvas.style.height = displayHeight + "px";
-
-    game.set_viewport(
-        (canvas.width / dpr) / zoom,
-        (canvas.height / dpr) / zoom
-    );
-
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.scale(dpr * zoom, dpr * zoom);
-
-    ctx.imageSmoothingEnabled = false;
-
-    if (game.current_map) {
-        game.force_camera_center();
-    }
-}
 
 function randomChar(type) {
     const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -339,7 +318,7 @@ function getPasswordBoxDimensions(vWidth, vHeight) {
 }
 
 /**
- * Puts two passwords to be later drawn,NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
+ * Puts two passwords to be later drawn,NOTE: vWidth and vHeight are used AND NOT `canvas.width` and `canvas.height` because
  * of screens having higher DPI so canvas needs to be scaled
  */
 function spawnTwoPasswords() {
@@ -376,39 +355,26 @@ function spawnTwoPasswords() {
 }
 
 function spawnTwoImages() {
-    currentImages = []
+    if (safeImages.length === 0 || unsafeImages.length === 0) {
+        currentRoundMode = PASSWORDS_MODE;
+        spawnTwoPasswords();
+        return;
+    }
 
-    const safeImg = safeImages[Math.floor(Math.random() * safeImages.length)]
-    const unsafeImg = unsafeImages[Math.floor(Math.random() * unsafeImages.length)]
+    currentImages = [];
+    const safeImg = safeImages[Math.floor(Math.random() * safeImages.length)];
+    const unsafeImg = unsafeImages[Math.floor(Math.random() * unsafeImages.length)];
 
-    currentImages.push(safeImg, unsafeImg)
-
-
-    currentImages.sort(() => Math.random() - 0.5)
-}
-
-function roundRect(x, y, w, h, r, fill, stroke) {
-    ctx.beginPath()
-    ctx.moveTo(x + r, y)
-    ctx.lineTo(x + w - r, y)
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r)
-    ctx.lineTo(x + w, y + h - r)
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
-    ctx.lineTo(x + r, y + h)
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r)
-    ctx.lineTo(x, y + r)
-    ctx.quadraticCurveTo(x, y, x + r, y)
-    ctx.closePath()
-
-    if (fill) ctx.fill()
-    if (stroke) ctx.stroke()
+    currentImages.push(safeImg, unsafeImg);
+    currentImages.sort(() => Math.random() - 0.5);
 }
 
 function startMiniGame() {
+    stopMainLoop()
+    gameRunning = false
+
     canvas.style.display = 'none'
     canvas2D.style.display = "block"
-
-    gameRunning = false
 
     initTouchControlsIfMobile(game)
     game.running = true
@@ -420,7 +386,6 @@ function endMiniGame() {
     canvas.style.display = 'block'
     canvas2D.style.display = "none"
 
-    game.running = false
     const controls = document.getElementById('mobile-controls');
     if (controls) {
         controls.remove(); // Completely removes the elements from the DOM
@@ -429,11 +394,11 @@ function endMiniGame() {
     minScore = 10
     successSequence = 0
     isMiniGameFinished = true
-    let isHappy=isHappyEnd();
+    let isHappy = isHappyEnd();
     console.log("HappyEnd")
     console.log(isHappy)
-    if(isHappy){
-        score+=10
+    if (isHappy) {
+        score += 10
     }
     startGame()
 }
@@ -444,7 +409,7 @@ function update() {
     lastTime = now
 
 
-    if (info.hover) return;
+    if (info.open) return;
 
     if (gamePhase === BONUS_ROUND_PHASE) {
         return
@@ -477,10 +442,9 @@ function update() {
         phaseTimer -= delta
 
         if (phaseTimer <= 0) {
-            if(successSequence > 1){
+            if (successSequence > 1) {
                 startMiniGame()
-            }
-            else {
+            } else {
                 resetMainGame()
             }
 
@@ -488,13 +452,13 @@ function update() {
     }
 }
 
-export function resetMainGame() {
+function resetMainGame() {
     timeElapsed = 0
     gameRunning = true
     gamePhase = PLAYING_PHASE
     startNewRound()
     lastTime = Date.now()
-    gameLoop()
+    startMainLoop()
 }
 
 function drawTotalTimer(vWidth, vHeight, aspect_size) {
@@ -503,6 +467,7 @@ function drawTotalTimer(vWidth, vHeight, aspect_size) {
 
     ctx.save()
     ctx.font = `bold ${font_size}px monospace`
+    // Draw the "Time Remaining" text at the bottom
     const remaining = Math.max(0, Math.ceil(gameDuration - timeElapsed))
     ctx.fillStyle = "#f6f3f3"
     ctx.textAlign = "center"
@@ -522,8 +487,13 @@ function draw() {
 
     ctx.clearRect(0, 0, vWidth, vHeight)
 
+    const blurred = info.open
 
-    console.log(gamePhase)
+    if (blurred) {
+        ctx.save()
+        ctx.filter = `blur(${8 / aspect_size}px)`
+    }
+
 
     if (gamePhase === SUCCESS_PHASE) {
         drawSuccessScreen(vWidth, vHeight)
@@ -546,7 +516,6 @@ function draw() {
         return
     }
 
-    // Pass the virtual sizes down to the helpers
     drawInstructions(vWidth, vHeight, aspect_size)
     drawScore(vWidth, aspect_size)
     drawTimer(vWidth, vHeight, aspect_size)
@@ -559,7 +528,11 @@ function draw() {
 
     drawTotalTimer(vWidth, vHeight, aspect_size)
 
-    drawInfoButton(vWidth, aspect_size)
+    if (blurred) {
+        ctx.restore()
+    }
+
+    drawInfoButton(vWidth, vHeight, aspect_size)
 }
 
 function drawSuccessScreen(vWidth, vHeight) {
@@ -614,14 +587,14 @@ function drawSuccessScreen(vWidth, vHeight) {
 }
 
 function drawRetryPrompt(vWidth, vHeight, aspect_size) {
-    // 1. Cyber Background (Deep Navy Gradient)
+
     const bgGrad = ctx.createRadialGradient(vWidth / 2, vHeight / 2, 10, vWidth / 2, vHeight / 2, vWidth);
     bgGrad.addColorStop(0, "#0f172a");
     bgGrad.addColorStop(1, "#020617");
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, vWidth, vHeight);
 
-    // 2. Subtle Scan-lines (Optional but very Cyber)
+
     ctx.fillStyle = "rgba(0, 242, 255, 0.03)";
     for (let i = 0; i < vHeight; i += 4) {
         ctx.fillRect(0, i, vWidth, 1);
@@ -630,7 +603,7 @@ function drawRetryPrompt(vWidth, vHeight, aspect_size) {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    // 3. Header with "Glow"
+
     ctx.save();
     ctx.shadowBlur = 15;
     ctx.shadowColor = "#facc15";
@@ -649,12 +622,11 @@ function drawRetryPrompt(vWidth, vHeight, aspect_size) {
     const buttonH = Math.round(60 / aspect_size);
     const button_spacing = Math.round(20 / aspect_size);
 
-    // Recovery (The "Safe" Path)
+
     drawCyberButton(
         "RECOVERY_PROTOCOL", vWidth / 2 - buttonW - button_spacing, vHeight * 0.56, buttonW, buttonH, true, aspect_size
     );
 
-    // Terminate (The "Hard" Path)
     drawCyberButton(
         "TERMINATE_REBOOT", vWidth / 2 + button_spacing, vHeight * 0.56, buttonW, buttonH, false, aspect_size
     );
@@ -663,10 +635,10 @@ function drawRetryPrompt(vWidth, vHeight, aspect_size) {
 function drawCyberButton(text, x, y, w, h, primary, aspect_size) {
     ctx.save();
 
-    const color = primary ? "#22c55e" : "#ef4444"; // Green for recovery, Red for terminate
+    const color = primary ? "#22c55e" : "#ef4444";
     const fontSize = Math.round(RETRY_BUTTON_TEXT_FONT_SIZE / aspect_size);
 
-    // 1. Draw Background Box (Semi-transparent)
+
     ctx.fillStyle = "rgba(15, 23, 42, 0.8)";
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
@@ -675,22 +647,24 @@ function drawCyberButton(text, x, y, w, h, primary, aspect_size) {
     ctx.fill();
     ctx.stroke();
 
-    // 2. Add Corner "Brackets" for extra Cyber feel
+
     ctx.lineWidth = 4 / aspect_size;
-    // Top-left bracket
+
+
     ctx.beginPath();
     ctx.moveTo(x, y + 15 / aspect_size);
     ctx.lineTo(x, y);
     ctx.lineTo(x + 15 / aspect_size, y);
     ctx.stroke();
-    // Bottom-right bracket
+
+
     ctx.beginPath();
     ctx.moveTo(x + w - 15 / aspect_size, y + h);
     ctx.lineTo(x + w, y + h);
     ctx.lineTo(x + w, y + h - 15 / aspect_size);
     ctx.stroke();
 
-    // 3. Glowing Text
+
     ctx.shadowBlur = 10 / aspect_size;
     ctx.shadowColor = color;
     ctx.fillStyle = "#f8fafc";
@@ -707,30 +681,57 @@ function drawCyberButton(text, x, y, w, h, primary, aspect_size) {
  * of screens having higher DPI so canvas needs to be scaled
  * */
 function drawGameOver(vWidth, vHeight, aspect_size) {
-    ctx.fillStyle = "#000000"
-    ctx.fillRect(0, 0, vWidth, vHeight)
+    // 1. Background: Deep slate with a slight transparency for a "HUD overlay" feel
+    ctx.fillStyle = "rgba(10, 15, 28, 0.95)";
+    ctx.fillRect(0, 0, vWidth, vHeight);
 
-    ctx.fillStyle = "#ffffff"
-    const scaleFont = Math.round(GAME_OVER_TEXT_FONT_SIZE / aspect_size)
-    ctx.font = `bold ${scaleFont}px Arial`
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-    ctx.fillText(`Game Over! Score: ${score}`, vWidth / 2, vHeight / 2)
+    // 2. Neon "Game Over" Text
+    const scaleFont = Math.round(GAME_OVER_TEXT_FONT_SIZE / aspect_size);
+    ctx.font = `bold ${scaleFont}px "Courier New", monospace`; // Cyber Monospace
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
 
-    //  RESTART BUTTON
-    const btnW = vWidth / 4
-    const btnH = 50
-    const btnX = (vWidth - btnW) / 2
-    const btnY = vHeight / 2 + 20
 
-    ctx.fillStyle = "#22c55e"
-    roundRect(btnX, btnY, btnW, btnH, 12, true, false)
+    ctx.shadowBlur = 15 / aspect_size;
+    ctx.shadowColor = "#ff0055"; // Hot pink neon glow
+    ctx.fillStyle = "#ff0055";
+    ctx.fillText(`GAME OVER`, vWidth / 2, vHeight / 2 - (20 / aspect_size));
 
-    ctx.fillStyle = "#ffffff"
-    ctx.font = "bold 20px Arial"
-    ctx.fillText("Restart Game", vWidth / 2, btnY + btnH / 2)
 
-    restartButton = {x: btnX, y: btnY, w: btnW, h: btnH}
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#00f2ff";
+    ctx.font = `bold ${Math.round(20 / aspect_size)}px "Courier New", monospace`;
+    ctx.fillText(`SYSTEM_RECOVERY: Score ${score}`, vWidth / 2, vHeight / 2 + (20 / aspect_size));
+
+
+    const btnW = Math.max(200, vWidth / 4);
+    const btnH = 50 / aspect_size;
+    const btnX = (vWidth - btnW) / 2;
+    const btnY = vHeight / 2 + (80 / aspect_size);
+
+
+    ctx.beginPath();
+    ctx.moveTo(btnX + (15 / aspect_size), btnY);
+    ctx.lineTo(btnX + btnW, btnY);
+    ctx.lineTo(btnX + btnW, btnY + btnH - (15 / aspect_size));
+    ctx.lineTo(btnX + btnW - (15 / aspect_size), btnY + btnH);
+    ctx.lineTo(btnX, btnY + btnH);
+    ctx.lineTo(btnX, btnY + (15 / aspect_size));
+    ctx.closePath();
+
+
+    ctx.fillStyle = "rgba(34, 197, 94, 0.2)";
+    ctx.fill();
+    ctx.strokeStyle = "#22c55e";
+    ctx.lineWidth = 2 / aspect_size;
+    ctx.stroke();
+
+
+    ctx.fillStyle = "#22c55e";
+    ctx.font = `bold ${Math.round(18 / aspect_size)}px "Courier New", monospace`;
+    ctx.fillText("REBOOT_SYSTEM", vWidth / 2, btnY + btnH / 2);
+
+    restartButton = {x: btnX, y: btnY, w: btnW, h: btnH};
 }
 
 /** Functions that draw the instruction text, NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
@@ -815,8 +816,7 @@ function drawTimer(vWidth, vHeight, aspect_size) {
     ctx.lineWidth = 3 / aspect_size;
     ctx.stroke();
 
-    // 3. The Depleting Data Ring
-    // This shows visually how much time is left in the specific round
+
     const startAngle = -Math.PI / 2;
     const progress = timeLeft / ROUND_DURATION; // Assuming you have roundDuration (e.g., 5s)
     const endAngle = startAngle + (Math.PI * 2 * progress);
@@ -843,33 +843,32 @@ function drawTimer(vWidth, vHeight, aspect_size) {
 /** Function that Draws the info button and also the info dialog,NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
  * of screens having higher DPI so canvas needs to be scaled
  * */
-function drawInfoButton(vWidth, aspect_size) {
+function drawInfoButton(vWidth, vHeight, aspect_size) {
     if (!info.visible) return;
 
     ctx.save();
-    // 1. Draw the Button Base (Darker, Metallic)
+
+
     ctx.beginPath();
     ctx.arc(info.x, info.y, info.radius, 0, Math.PI * 2);
     ctx.fillStyle = "#0f172a";
     ctx.fill();
 
-    // 2. Neon Rim (Constant glow)
-    ctx.strokeStyle = info.hover ? "#00f2ff" : "#1e293b";
+    ctx.strokeStyle = info.open ? "#00f2ff" : "#1e293b";
     ctx.lineWidth = 2 / aspect_size;
-    ctx.shadowBlur = info.hover ? 15 / aspect_size : 0;
+    ctx.shadowBlur = info.open ? 15 / aspect_size : 0;
     ctx.shadowColor = "#00f2ff";
     ctx.stroke();
 
-    // 3. The "?" Icon
     ctx.shadowBlur = 0;
-    ctx.fillStyle = info.hover ? "#00f2ff" : "#f8fafc";
+    ctx.fillStyle = info.open ? "#00f2ff" : "#f8fafc";
     ctx.font = `bold ${info.radius * 1.2}px monospace`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("?", info.x, info.y);
     ctx.restore();
 
-    if (info.hover) {
+    if (info.open) {
         drawInfoPopup(vWidth, aspect_size);
     }
 }
@@ -881,39 +880,36 @@ function drawInfoPopup(vWidth, aspect_size) {
     const lineHeight = 18 / aspect_size; // Increased for better readability
     const tooltipHeight = lines.length * lineHeight + padding * 3;
 
-    // Positioning logic (keep it on screen)
     let tooltipX = info.x - tooltipWidth;
     let tooltipY = info.y + (30 / aspect_size);
 
     ctx.save();
 
-    // 1. Holographic Background
+
     ctx.fillStyle = "rgba(10, 20, 40, 0.95)";
     ctx.strokeStyle = "#00f2ff";
     ctx.lineWidth = 1;
 
-    // Draw the main container
     ctx.beginPath();
     ctx.roundRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight, 4 / aspect_size);
     ctx.fill();
     ctx.stroke();
 
-    // 2. Header Bar
     ctx.fillStyle = "rgba(0, 242, 255, 0.2)";
     ctx.fillRect(tooltipX, tooltipY, tooltipWidth, 25 / aspect_size);
 
     ctx.fillStyle = "#00f2ff";
     ctx.font = `bold ${10 / aspect_size}px monospace`;
-    console.log(aspect_size)
+
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.fillText("DATA_STREAMS // HELP_PROMPT", tooltipX + (10 / aspect_size), tooltipY + (12 / aspect_size));
 
-    // 3. Corner Accents (Brackets)
+
     ctx.strokeStyle = "#00f2ff";
     ctx.lineWidth = 3 / aspect_size;
     const bLen = 10 / aspect_size;
-    // Bottom-Right Bracket
+
     ctx.beginPath();
     ctx.moveTo(tooltipX + tooltipWidth - bLen, tooltipY + tooltipHeight);
     ctx.lineTo(tooltipX + tooltipWidth, tooltipY + tooltipHeight);
@@ -982,7 +978,6 @@ function drawImages(vWidth, vHeight, aspect_size) {
         ctx.lineTo(x + displayWidth + (8 / aspect_size), y + displayHeight + (8 / aspect_size) - bLen);
         ctx.stroke();
 
-        // 2. Draw Image with a thin border
         if (img.complete) {
             ctx.drawImage(img, x, y, displayWidth, displayHeight);
             ctx.strokeStyle = "rgba(255,255,255,0.2)";
@@ -992,7 +987,6 @@ function drawImages(vWidth, vHeight, aspect_size) {
             ctx.fillRect(x, y, displayWidth, displayHeight);
         }
 
-        // 3. Cyber Label (e.g., "FILE_01", "FILE_02")
 
         const font_size_scaled = Math.round(12 / aspect_size)
         ctx.fillStyle = "#00f2ff";
@@ -1011,26 +1005,22 @@ function drawPasswords(vWidth, vHeight, aspect_size) {
 
     passwordChoices.forEach((pw) => {
         ctx.save()
-        // 1. Darker, more "LCD" background
+
         ctx.fillStyle = "#0f172a";
         ctx.strokeStyle = "#334155";
         ctx.lineWidth = 1;
 
-        // Draw main box
         ctx.beginPath();
         ctx.roundRect(pw.x, pw.y, pw.width, pw.height, 4 / aspect_size);
         ctx.fill();
         ctx.stroke();
 
-        // 2. Neon "Side-Bar" accent (Vertical line on the left)
         ctx.fillStyle = "#00f2ff";
         ctx.fillRect(pw.x, pw.y, 4 / aspect_size, pw.height);
 
-        // 3. Highlight Logic
         let totalTextWidth = ctx.measureText(pw.text).width;
         let startX = pw.x + (pw.width / 2) - (totalTextWidth / 2);
 
-        // Draw text with a subtle glow
         ctx.shadowBlur = 8 / aspect_size;
         for (let char of pw.text) {
             // const isSpecial = SYMBOLS.includes(char) || (char >= '0' && char <= '9');
@@ -1047,30 +1037,30 @@ function drawPasswords(vWidth, vHeight, aspect_size) {
 }
 
 function gameLoop() {
-    if (!gameRunning) return
+    if (!gameRunning) {
+        mainRafId = null
+        return
+    }
+
     update()
     draw()
-    requestAnimationFrame(gameLoop)
+
+    mainRafId = requestAnimationFrame(gameLoop)
+}
+
+function startMainLoop() {
+    if (mainRafId !== null) return; // already running
+    mainRafId = requestAnimationFrame(gameLoop);
+}
+
+function stopMainLoop() {
+    if (mainRafId !== null) {
+        cancelAnimationFrame(mainRafId);
+        mainRafId = null;
+    }
 }
 
 function handlePasswordChoice(text) {
-
-    // if (gamePhase === BONUS_ROUND_PHASE) {
-    //     bonusQuestionsAnswered++
-    //
-    //     if (reallySafePasswords.includes(text)) bonusScore += 1
-    //
-    //     if (bonusQuestionsAnswered >= 5) {
-    //         if (bonusScore >= 3) {
-    //             resetMainGame()
-    //         } else {
-    //             gamePhase = FINAL_GAME_OVER_PHASE
-    //         }
-    //     } else {
-    //         spawnTwoPasswords()
-    //     }
-    //     return
-    // }
 
     if (reallySafePasswords.includes(text)) {
         score += 2
@@ -1154,7 +1144,7 @@ function drawBonusRound(vWidth, vHeight, aspect_size) {
     ctx.lineTo(vWidth * 0.8, header_y + (15 / aspect_size));
     ctx.stroke();
 
-    // 3. The Question Panel (Chamfered Box)
+    // 3. The Question Panel
     const cardWidth = vWidth * 0.85;
     const cardHeight = 130 / aspect_size;
     const cardX = (vWidth - cardWidth) / 2;
@@ -1211,23 +1201,19 @@ function drawBonusRound(vWidth, vHeight, aspect_size) {
             ctx.fillStyle = "rgba(34, 197, 94, 0.2)"; // Low opacity green fill
             ctx.strokeStyle = "#22c55e";
         } else {
-            // Default: Dark Tech
             ctx.shadowBlur = 0;
             ctx.fillStyle = "rgba(15, 23, 42, 0.8)";
             ctx.strokeStyle = "#475569"; // Slate border
         }
 
-        // Draw Chamfered Button
         drawCutCornerRect(x, y, optionWidth, optionHeight, 10 / aspect_size, true, true);
-        ctx.shadowBlur = 0; // Reset glow for text
+        ctx.shadowBlur = 0;
 
-        // Text
         ctx.fillStyle = isSelected ? "#ffffff" : "#cbd5f5";
         ctx.font = `bold ${bodyFont * 0.9}px monospace`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
-        // Add a "Code" prefix (A:, B:, C:)
         const prefix = String.fromCharCode(65 + i); // 65 is 'A'
         ctx.fillText(`[${prefix}] ${opt}`, vWidth / 2, y + optionHeight / 2);
     });
@@ -1249,78 +1235,64 @@ function handleImageChoice(img) {
     startNewRound()
 }
 
-function startNewRound() {
+function imagesReady() {
+    return safeImages.length > 0 && unsafeImages.length > 0;
+}
 
-    if (Math.random() < 0.5) {
-        currentRoundMode = PASSWORDS_MODE
-        spawnTwoPasswords()
-    } else {
+function startNewRound() {
+    const canUseImages = imagesReady();
+
+    if (canUseImages && Math.random() > 0.5) {
         currentRoundMode = IMAGES_MODE
         spawnTwoImages()
+    } else {
+        currentRoundMode = PASSWORDS_MODE
+        spawnTwoPasswords()
     }
 
     timeLeft = roundTime
     lastTime = Date.now()
 }
 
-function roundHelpScreenRect(ctx, x, y, width, height, radius, fill, stroke) {
-    if (typeof stroke === "undefined") stroke = true
-    if (typeof radius === "undefined") radius = 5
-    if (typeof radius === "number") {
-        radius = {tl: radius, tr: radius, br: radius, bl: radius}
-    } else {
-        const defaultRadius = {tl: 0, tr: 0, br: 0, bl: 0}
-        for (let side in defaultRadius) {
-            radius[side] = radius[side] || defaultRadius[side]
-        }
-    }
-    ctx.beginPath()
-    ctx.moveTo(x + radius.tl, y)
-    ctx.lineTo(x + width - radius.tr, y)
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius.tr)
-    ctx.lineTo(x + width, y + height - radius.br)
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius.br, y + height)
-    ctx.lineTo(x + radius.bl, y + height)
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius.bl)
-    ctx.lineTo(x, y + radius.tl)
-    ctx.quadraticCurveTo(x, y, x + radius.tl, y)
-    ctx.closePath()
-    if (fill) ctx.fill()
-    if (stroke) ctx.stroke()
-}
 
 function isInside(mx, my, x, y, w, h) {
     return mx >= x && mx <= x + w && my >= y && my <= y + h
 }
 
 function handleBonusAnswer(index) {
+    if (bonusLocked) return
+    bonusLocked = true
+
     selectedOption = index
 
-    const correct = bonusQuestions[bonusIndex].correctIndex
-    if (index === correct) bonusScore++
+    const q = bonusQuestions[bonusIndex]
+    if (index === q.correctIndex) bonusScore++
 
-    setTimeout(() => {
-        selectedOption = null
-        bonusIndex++
+    if (bonusTimeoutId !== null) clearTimeout(bonusTimeoutId)
 
-        if (bonusIndex === 5) {
+    bonusTimeoutId = setTimeout(() => {
+        selectedOption = null;
+        bonusIndex++;
+
+        bonusLocked = false
+
+        if (bonusIndex >= 5) {
             endBonusRound()
         }
-    }, 600)
+    }, 600);
 }
+
 
 function endBonusRound() {
     bonusActive = false
 
     if (bonusScore >= 3 && bonusScore < 5) {
-        score+=bonusScore;
+        score += bonusScore;
         resetMainGame()
-    }
-    else if(bonusScore === 5){
-        score+=bonusScore;
+    } else if (bonusScore === 0) {
+        score += bonusScore;
         startMiniGame()
-    }
-    else {
+    } else {
         gamePhase = FINAL_GAME_OVER_PHASE
     }
 }
@@ -1332,17 +1304,14 @@ function startBonusRound() {
     selectedOption = null
     bonusActive = true
 
-    console.log('startBonusRound()')
-
     gamePhase = BONUS_ROUND_PHASE
     timeLeft = Infinity
 }
 
 function setupMobileControls(game) {
-    // 1. Check if controls already exist to avoid duplicates
+
     if (document.getElementById('mobile-controls')) return;
 
-    // 2. Create the HTML structure
     const overlay = document.createElement('div');
     overlay.id = 'mobile-controls';
     overlay.innerHTML = `
@@ -1355,28 +1324,26 @@ function setupMobileControls(game) {
         </div>
     `;
 
-    // Append to the document body (or your game container)
+
     document.body.appendChild(overlay);
 
-    // 3. Helper to handle input state
     const setKey = (key, state) => {
         if (game && game.key) {
             game.key[key] = state;
         }
     };
 
-    // 4. Bind Events (Touch and Mouse for testing)
     const buttons = overlay.querySelectorAll('.cyber-btn');
 
     buttons.forEach(btn => {
         const key = btn.getAttribute('data-key');
 
-        // Touch Start
+
         btn.addEventListener('touchstart', (e) => {
-            e.preventDefault(); // Stop scrolling/zooming
-            btn.classList.add('pressed'); // Visual feedback
+            e.preventDefault();
+            btn.classList.add('pressed');
             setKey(key, true);
-        }, { passive: false });
+        }, {passive: false});
 
         // Touch End
         btn.addEventListener('touchend', (e) => {
@@ -1385,13 +1352,11 @@ function setupMobileControls(game) {
             setKey(key, false);
         });
 
-        // Mouse Down (for testing on PC without keyboard)
-        btn.addEventListener('mousedown', (e) => {
+        btn.addEventListener('mousedown', () => {
             btn.classList.add('pressed');
             setKey(key, true);
         });
 
-        // Mouse Up / Leave
         btn.addEventListener('mouseup', () => {
             btn.classList.remove('pressed');
             setKey(key, false);
@@ -1426,16 +1391,29 @@ function initTouchControlsIfMobile(game) {
 
 canvas2D.style.display = 'none';
 
-// Start the loading process immediately
-loadGameImages()
-
 window.addEventListener("resize", resizeCanvas)
 resizeCanvas()
 
-startBtn.addEventListener("click", () => {
+startBtn.addEventListener("click", async () => {
+
+    startBtn.disabled = true;
+    startBtn.textContent = "Loading...";
+
+    try {
+        await loadGameImages();
+    } catch (err) {
+        console.error(err);
+        startBtn.textContent = "Missing images!!!";
+        return;
+    }
+
     startScreen.style.display = 'none'
     document.getElementById('game-wrapper').style.display = 'flex'
     canvas.style.display = 'block'
+
+    startBtn.textContent = "Start Game";
+    startBtn.disabled = false;
+
     startGame()
 })
 
@@ -1449,12 +1427,14 @@ canvas.addEventListener("click", (e) => {
     const dx = mx - info.x
     const dy = my - info.y
 
-    const wasHovering = info.hover;
-    info.hover = Math.sqrt(dx * dx + dy * dy) <= info.radius
+    const wasHovering = info.open;
+    info.open = Math.sqrt(dx * dx + dy * dy) <= info.radius
 
-    if (wasHovering && !info.hover) {
+    if (wasHovering && !info.open) {
         lastTime = Date.now();
     }
+    // With this we will not register clicks to score when the info panel is open
+    if (wasHovering) return;
 
     const vWidth = canvas.width / dpr
     const vHeight = canvas.height / dpr
@@ -1483,7 +1463,7 @@ canvas.addEventListener("click", (e) => {
             )
         ) {
             score = 0
-            resetMainGame() // restart igra
+            resetMainGame()
 
             // startMiniGame()
         }
@@ -1541,11 +1521,3 @@ canvas.addEventListener("click", (e) => {
         })
     }
 })
-
-
-/*
-* TODO
-*
-* Win Minigame fix
-*
-* */

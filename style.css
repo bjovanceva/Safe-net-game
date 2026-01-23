@@ -169,6 +169,12 @@ canvas {
 /*    justify-content: center;*/
 /*}*/
 
+.no-select {
+    user-select: none;
+    -webkit-user-select: none; /* Safari */
+    -ms-user-select: none;     /* old Edge */
+}
+
 #mobile-controls {
     /* Default scale is 1 if JS fails */
     --ui-scale: 1;

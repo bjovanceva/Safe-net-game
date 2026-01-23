@@ -23,10 +23,31 @@ THE SOFTWARE.
 /* Customisable map data */
 
 
-import {resizeMiniGameCanvas} from "./game.js";
-import {resetMainGame} from "./game.js";
+import {resizeMiniGameCanvas} from "./resizeMiniGame.js";
 
 export function Game2D(endGameFunc) {
+
+    const PLAYER_COLORS = [
+        "#FF4D4D", // red
+        "#FF8C00", // orange
+        "#FFD700", // gold
+        "#7CFC00", // lawn green
+        "#00FF7F", // spring green
+        "#00E5FF", // cyan
+        "#1E90FF", // dodger blue
+        "#7B61FF", // violet-blue
+        "#FF4DFF", // magenta
+        "#FFFFFF", // white
+        "#FFB6C1", // light pink
+        "#00FFB3", // mint
+        "#BFFF00", // chartreuse-ish
+        "#FF3D00", // deep orange
+        "#00C853"  // strong green
+    ];
+
+    function pickPlayerColor() {
+        return PLAYER_COLORS[(Math.random() * PLAYER_COLORS.length) | 0];
+    }
 
     let happyEnd = false;
 
@@ -34,11 +55,38 @@ export function Game2D(endGameFunc) {
         happyEnd = true;
     };
 
+    window.setHappyEndFalse = function () {
+        happyEnd = false;
+    };
+
+    const ACTIONS = Object.freeze({
+        change_colour(game) {
+            game.player.colour = pickPlayerColor();
+        },
+
+        next_level(game) {
+            alert("Yay! You won!");
+            setHappyEndTrue();
+            StopMiniGame();
+        },
+
+        death(game) {
+            alert("You died!");
+            setHappyEndFalse();
+            StopMiniGame();
+        },
+
+        unlock(game) {
+            game.current_map.keys[10].solid = 0;
+            game.current_map.keys[10].colour = "#888";
+        }
+    });
+
+
     function getFreshMap() {
         return {
 
             tile_size: 16,
-
 
             /*
 
@@ -71,11 +119,11 @@ export function Game2D(endGameFunc) {
                 {id: 4, colour: '#777', jump: 1},
                 {id: 5, colour: '#E373FA', solid: 1, bounce: 1.1},
                 {id: 6, colour: '#666', solid: 1, bounce: 0},
-                {id: 7, colour: '#73C6FA', solid: 0, script: 'change_colour'},
-                {id: 8, colour: '#FADF73', solid: 0, script: 'next_level'},
-                {id: 9, colour: '#C93232', solid: 0, script: 'death'},
+                {id: 7, colour: '#73C6FA', solid: 0, action: 'change_colour'},
+                {id: 8, colour: '#FADF73', solid: 0, action: 'next_level'},
+                {id: 9, colour: '#C93232', solid: 0, action: 'death'},
                 {id: 10, colour: '#555', solid: 1},
-                {id: 11, colour: '#0FF', solid: 0, script: 'unlock'}
+                {id: 11, colour: '#0FF', solid: 0, action: 'unlock'}
             ],
 
             /* An array representing the map tiles. Each number corresponds to a key */
@@ -175,17 +223,16 @@ export function Game2D(endGameFunc) {
 
             /* scripts referred to by the "script" variable in the tile keys */
 
-            scripts: {
-                /* you can just use "this" instead of your engine variable ("game"), but Codepen doesn't like it */
-                change_colour: 'game.player.colour = "#"+(Math.random()*0xFFFFFF<<0).toString(16);',
-                /* you could load a new map variable here */
-                // next_level: 'alert("Yay! You won! Reloading map.");game.load_map(map);',
-                // next_level: 'alert("Yay! You won! Reloading map.");game.running=false; setTimeout(StartMiniGame,200);',
-                next_level: 'alert("Yay! You won! Reloading map."); setHappyEndTrue(); endGameFunc();',
-                // death: 'alert("You died!");game.load_map(map);',
-                death: 'alert("You died!");endGameFunc();',
-                unlock: 'game.current_map.keys[10].solid = 0;game.current_map.keys[10].colour = "#888";'
-            }
+            // scripts: {
+            //     /* you can just use "this" instead of your engine variable ("game"), but Codepen doesn't like it */
+            //     change_colour: 'game.player.colour = pickPlayerColor();',
+            //     /* you could load a new map variable here */
+            //     // next_level: 'alert("Yay! You won! Reloading map.");game.load_map(map);',
+            //     next_level: 'alert("Yay! You won! Reloading map."); setHappyEndTrue(); StopMiniGame();',
+            //     // death: 'alert("You died!");game.load_map(map);',
+            //     death: 'alert("You died!");setHappyEndFalse();StopMiniGame();',
+            //     unlock: 'game.current_map.keys[10].solid = 0;game.current_map.keys[10].colour = "#888";'
+            // }
         }
     }
 
@@ -232,9 +279,39 @@ export function Game2D(endGameFunc) {
             can_jump: true
         };
 
-        window.onkeydown = this.keydown.bind(this);
-        window.onkeyup = this.keyup.bind(this);
+        // window.onkeydown = this.keydown.bind(this);
+        // window.onkeyup = this.keyup.bind(this);
     };
+
+
+    Clarity.prototype.attachControls = function () {
+        if (this._controlsAttached) return;
+
+        this._boundKeydown = this.keydown.bind(this);
+        this._boundKeyup = this.keyup.bind(this);
+
+        window.addEventListener("keydown", this._boundKeydown);
+        window.addEventListener("keyup", this._boundKeyup);
+
+        this._controlsAttached = true;
+    };
+
+    Clarity.prototype.detachControls = function () {
+        if (!this._controlsAttached) return;
+
+        window.removeEventListener("keydown", this._boundKeydown);
+        window.removeEventListener("keyup", this._boundKeyup);
+
+        this._boundKeydown = null;
+        this._boundKeyup = null;
+        this._controlsAttached = false;
+
+        // also clear stuck input so player won't keep moving
+        this.key.left = false;
+        this.key.right = false;
+        this.key.up = false;
+    };
+
 
     Clarity.prototype.error = function (message) {
 
@@ -254,6 +331,10 @@ export function Game2D(endGameFunc) {
     };
 
     Clarity.prototype.keydown = function (e) {
+
+        if (e.keyCode === 37 || e.keyCode === 38 || e.keyCode === 39) {
+            e.preventDefault();
+        }
 
         var _this = this;
 
@@ -576,9 +657,18 @@ export function Game2D(endGameFunc) {
             }
         }
 
-        if (this.last_tile != tile.id && tile.script) {
+        // if (this.last_tile != tile.id && tile.script) {
+        //
+        //     eval(this.current_map.scripts[tile.script]);
+        // }
 
-            eval(this.current_map.scripts[tile.script]);
+        if (this.last_tile !== tile.id && tile.action) {
+            const fn = ACTIONS[tile.action];
+            if (typeof fn === "function") {
+                fn(this); // <-- "this" here is the Clarity instance (your game object)
+            } else if (this.log_info) {
+                console.warn("Unknown tile action:", tile.action);
+            }
         }
 
         this.last_tile = tile.id;
@@ -676,48 +766,120 @@ export function Game2D(endGameFunc) {
 
     let game = new Clarity();
 
-
     let centeredCamera = false
 
-    const Loop = function () {
+    // --- Fixed 60Hz simulation, render at display refresh ---
+    const FIXED_DT = 1000 / 60;          // 16.666...
+    const MAX_CATCHUP_STEPS = 5;         // prevents spiral-of-death on tab lag
 
-        ctx.fillStyle = '#333';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    let miniRafId = null;
+    let loopGen = 0;
 
-        game.update();
-        game.draw(ctx);
+    let lastTime = 0;
+    let accumulator = 0;
 
-        if(!game.running){
-            return
+// (optional) FPS logging of *render frames* (not simulation ticks)
+    let fpsFrames = 0;
+    let fpsLastTime = performance.now();
+
+    function stopMiniLoop() {
+        if (miniRafId !== null) {
+            cancelAnimationFrame(miniRafId);
+            miniRafId = null;
         }
+    }
 
-        if(!centeredCamera){
-            game.force_camera_center()
-            centeredCamera = true
-        }
+    function startMiniLoop() {
+        if (miniRafId !== null) return;
 
-        window.requestAnimFrame(Loop);
-    };
+        const myGen = loopGen;
+        lastTime = performance.now();
+        accumulator = 0;
+
+        const Loop = (t) => {
+            // kill old chains after restart
+            if (myGen !== loopGen) {
+                miniRafId = null;
+                return;
+            }
+
+            if (!game.running) {
+                miniRafId = null;
+                return;
+            }
+
+            // ---- FPS (render) logging ----
+            fpsFrames++;
+            if (t - fpsLastTime >= 1000) {
+                console.log("MINIGAME RENDER FPS:", fpsFrames);
+                fpsFrames = 0;
+                fpsLastTime = t;
+            }
+
+            // ---- fixed-step simulation ----
+            let frameTime = t - lastTime;
+            lastTime = t;
+
+            // if tab was inactive, avoid huge catch-up
+            if (frameTime > 250) frameTime = 250;
+
+            accumulator += frameTime;
+
+            let steps = 0;
+            while (accumulator >= FIXED_DT && steps < MAX_CATCHUP_STEPS) {
+                game.update();              // runs at 60Hz no matter the monitor
+                accumulator -= FIXED_DT;
+                steps++;
+            }
+
+            // ---- render (can be 60/144/whatever) ----
+            ctx.fillStyle = "#333";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            game.draw(ctx);
+
+            if (!centeredCamera) {
+                game.force_camera_center();
+                centeredCamera = true;
+            }
+
+            miniRafId = requestAnimationFrame(Loop);
+        };
+
+        miniRafId = requestAnimationFrame(Loop);
+    }
 
     const StartMiniGame = function () {
+        centeredCamera = false;
 
-        centeredCamera = false
+        loopGen++;      // invalidates any currently-running Loop()
+        stopMiniLoop(); // cancels any scheduled future frame
 
         const newMap = getFreshMap();
         game.load_map(newMap);
-
         game.limit_viewport = true;
 
         const rect = canvas.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-
         resizeMiniGameCanvas(canvas, ctx, game, rect.width, rect.height, dpr);
 
         game.force_camera_center();
 
+        game.attachControls();
+
         game.running = true;
-        Loop();
+
+        startMiniLoop();
+    };
+
+    function StopMiniGame() {
+        game.running = false;
+        game.detachControls();
+        stopMiniLoop();
+        endGameFunc();
     }
+
+
 
     return {
         canvas,
@@ -728,4 +890,5 @@ export function Game2D(endGameFunc) {
 
     }
 }
+
 
