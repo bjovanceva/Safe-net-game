@@ -9,7 +9,7 @@ import questions from "./data/questions.js"
 import images_description from "./data/images_description.js";
 import {WEAK_PASSWORDS} from "./data/weak_passwords.js"
 
-import {Game2D} from "./2d_game.js"
+import {Game2D} from "./2d_game.js";
 import {resizeMiniGameCanvas} from "./resizeMiniGame.js";
 
 const startScreen = document.getElementById("start-screen")
@@ -51,7 +51,7 @@ let score = 0
 let gameRunning = false
 let passwordChoices = []
 let currentImages = []
-let roundTime = 5
+let roundTime = 15
 let timeLeft = roundTime
 let lastTime = Date.now()
 let reallySafePasswords = []
@@ -62,7 +62,7 @@ let notSafePasswords = []
 let currentRoundMode = PASSWORDS_MODE
 
 const gameDuration = 20
-const ROUND_DURATION = 5
+const ROUND_DURATION = 15
 
 let timeElapsed = 0
 let gameEnded = false
@@ -128,8 +128,8 @@ const unsafeImages = []
 
 // How many images to try loading (e.g., checks good1_final up to good20_final)
 // You can increase this number as you add more images to your folder.
-const MAX_IMAGES_TO_CHECK_GOOD = 8
-const MAX_IMAGES_TO_CHECK_BAD = 10
+const MAX_IMAGES_TO_CHECK_GOOD = 15
+const MAX_IMAGES_TO_CHECK_BAD = 18
 
 
 const {game: game, canvas: canvas2D, ctx: ctx2D, StartMiniGame, isHappyEnd} = Game2D(endMiniGame)

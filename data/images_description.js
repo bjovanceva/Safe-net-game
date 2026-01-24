@@ -8,6 +8,14 @@ const images_description={
     good6_final: "Reporting an email from 'support@paypal-verify.com' with an urgent message to claim a free gift and a link",
     good7_final: "A system permission prompt from the Instagram app requesting access to user's device's contacts and location, with 'Deny' selected",
     good8_final: "Deleting a social media friend request from unknown 'Alex J.' with three mutual friends",
+    good9_final: "A user is rejecting an open, unsecured network named 'CoffeeShop_Free_WiFi' by clicking the Cancel button on a security warning",
+    good10_final: "Accessing an online banking portal via a browser displaying the HTTPS prefix after checking the exact domain name",
+    good11_final: "Creating a new email account on a desktop browser using a long, complex password",
+    good12_final: "A user uses one password for social media and a different password for online banking",
+    good13_final: "Not sharing phone numbers, home addresses, or school details publicly",
+    good14_final: "Activating both the antivirus software and the firewall",
+    good15_final: "Leaving social media accounts private",
+
 
     bad1_final: "A social media interface prompting the user to share a post publicly",
     bad2_final: "An email claiming an account has been suspended and urging the recipient to click a 'VERIFY NOW' link",
@@ -19,6 +27,14 @@ const images_description={
     bad8_final: "An email from 'Your Mailchimp Account' that warns of a suspicious login and urges the user to reactivate the account by clicking a link",
     bad9_final: "A smartphone displays an 'Order Update' notification that includes a specific order number, text and a blue button to view order details",
     bad10_final: "Accepting a social media friend request from unknown 'Emilia K.' with two mutual friends",
+    bad11_final: "A girl is clicking a link within a message that says, 'Need $5k, wire me now.'",
+    bad12_final: "An user is pressing a 'Deny Two-Factor Authentication' button on a smartphone screen displaying an 'Account Compromised' alert",
+    bad13_final: "Entering 'admin' for both the username and password on the login screen.",
+    bad14_final: "Browsing a public forum website via a browser displaying an unencrypted HTTP prefix",
+    bad15_final: "Downloading software from an unencrypted site via a browser displaying a prominent HTTP prefix",
+    bad16_final: "A user shares their password with a friend",
+    bad17_final: "Forgetting to log out on school, library, or café computers",
+    bad18_final: "Posting where you are while still there",
 }
 
 export default images_description;
