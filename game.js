@@ -22,7 +22,7 @@ const dpr = window.devicePixelRatio || 1
 const SCORE_FONT_SIZE = 18
 const PASSWORDS_FONT_SIZE = 22
 const TOTAL_TIMER_FONT_SIZE = 18
-const TIMER_RADIUS_SIZE = 25
+const TIMER_RADIUS_SIZE = 20
 const INFO_BUTTON_RADIUS_SIZE = 18
 const INSTRUCTION_TEXT_FONT_SIZE = 20
 const RETRY_BUTTON_TEXT_FONT_SIZE = 18
@@ -89,7 +89,19 @@ let successSequence = 0
 
 let restartButton = null
 
+let mouseData = null
+
 const bonusQuestions = questions
+
+// Arrays to hold the successfully loaded image objects
+const safeImages = []
+const unsafeImages = []
+
+// How many images to try loading (e.g., checks good1_final up to good20_final)
+const MAX_IMAGES_TO_CHECK_GOOD = 15
+const MAX_IMAGES_TO_CHECK_BAD = 18
+
+const {game: game, canvas: canvas2D, ctx: ctx2D, StartMiniGame, isHappyEnd} = Game2D(endMiniGame)
 
 const info = {
     x: canvas.width - 40,
@@ -122,18 +134,6 @@ TIPS:
 - Numbers and special characters are in the color 
   Green so that they can be noticed easily`
 }
-
-// Arrays to hold the successfully loaded image objects
-const safeImages = []
-const unsafeImages = []
-
-// How many images to try loading (e.g., checks good1_final up to good20_final)
-// You can increase this number as you add more images to your folder.
-const MAX_IMAGES_TO_CHECK_GOOD = 15
-const MAX_IMAGES_TO_CHECK_BAD = 18
-
-
-const {game: game, canvas: canvas2D, ctx: ctx2D, StartMiniGame, isHappyEnd} = Game2D(endMiniGame)
 
 /**
  * TODO - Function Definition Logic Here
@@ -655,12 +655,24 @@ function drawRetryPrompt(vWidth, vHeight, aspect_size) {
 function drawCyberButton(text, x, y, w, h, primary, aspect_size) {
     ctx.save();
 
-    const color = primary ? "#22c55e" : "#ef4444";
+
+    let color
+    let hover
+    if(mouseIsInside(x,y,w,h)){
+        color = primary ? "#22c55e" : "#ef4444";
+        hover = true
+    }
+    else {
+        color = primary ? "#10652e" : "#9a2a2a";
+        hover = false
+    }
     const fontSize = Math.round(RETRY_BUTTON_TEXT_FONT_SIZE / aspect_size);
 
 
     ctx.fillStyle = "rgba(15, 23, 42, 0.8)";
     ctx.strokeStyle = color;
+    ctx.shadowBlur = hover ? 15 : 0;
+    ctx.shadowColor = color;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, 4 / aspect_size);
@@ -701,6 +713,7 @@ function drawCyberButton(text, x, y, w, h, primary, aspect_size) {
  * of screens having higher DPI so canvas needs to be scaled
  * */
 function drawGameOver(vWidth, vHeight, aspect_size) {
+    ctx.save()
     // 1. Background: Deep slate with a slight transparency for a "HUD overlay" feel
     ctx.fillStyle = "rgba(10, 15, 28, 0.95)";
     ctx.fillRect(0, 0, vWidth, vHeight);
@@ -729,6 +742,17 @@ function drawGameOver(vWidth, vHeight, aspect_size) {
     const btnX = (vWidth - btnW) / 2;
     const btnY = vHeight / 2 + (80 / aspect_size);
 
+    restartButton = {x: btnX, y: btnY, w: btnW, h: btnH};
+
+    let isHover = mouseIsInside(
+        restartButton.x,
+        restartButton.y,
+        restartButton.w,
+        restartButton.h)
+
+    ctx.shadowColor = isHover ? "#ff0000" : "#c52222";
+    ctx.shadowBlur = isHover ? 25 / aspect_size : 0
+
 
     ctx.beginPath();
     ctx.moveTo(btnX + (15 / aspect_size), btnY);
@@ -740,18 +764,21 @@ function drawGameOver(vWidth, vHeight, aspect_size) {
     ctx.closePath();
 
 
-    ctx.fillStyle = "rgba(34, 197, 94, 0.2)";
+
+
+    ctx.fillStyle = isHover ? "rgba(255,0,0,0.2)" :"rgba(197,34,34,0.2)";
     ctx.fill();
-    ctx.strokeStyle = "#22c55e";
+    ctx.shadowBlur = 0
+    ctx.strokeStyle = isHover ? "#ff0000" : "#c52222";
     ctx.lineWidth = 2 / aspect_size;
+
+
     ctx.stroke();
-
-
-    ctx.fillStyle = "#22c55e";
+    ctx.fillStyle = isHover ? "#ff0000": "#c52222";
     ctx.font = `bold ${Math.round(18 / aspect_size)}px "Courier New", monospace`;
-    ctx.fillText("REBOOT_SYSTEM", vWidth / 2, btnY + btnH / 2);
 
-    restartButton = {x: btnX, y: btnY, w: btnW, h: btnH};
+    ctx.fillText("REBOOT_SYSTEM", vWidth / 2, btnY + btnH / 2);
+    ctx.restore()
 }
 
 /** Functions that draw the instruction text, NOTE: vWidth and vHeight are used AND NOT canvas.width and canvas.height because
@@ -825,7 +852,7 @@ function drawTimer(vWidth, vHeight, aspect_size) {
     const radius = Math.round(TIMER_RADIUS_SIZE / aspect_size);
 
     // 1. Draw Background Glow
-    ctx.shadowBlur = 15 / aspect_size;
+    ctx.shadowBlur = 15 * (TIMER_RADIUS_SIZE / 25) / aspect_size;
     ctx.shadowColor = "#fb0000";
 
     // 2. The Inner Core (The Circle)
@@ -875,18 +902,37 @@ function drawInfoButton(vWidth, vHeight, aspect_size) {
     ctx.fillStyle = "#0f172a";
     ctx.fill();
 
-    ctx.strokeStyle = info.open ? "#00f2ff" : "#1e293b";
+    let strokeStyle
+    let shadowColor
+    if(mouseIsInsideCircle(info.x,info.y,info.radius)){
+        strokeStyle = info.open ? "#ff0000" : "#00f2ff"
+        shadowColor = info.open ? "#ff0000" : "#00f2ff"
+    }else {
+        strokeStyle = info.open ? "#8e0000" : "#1e293b"
+        shadowColor = info.open ? "#8e0000" : "#00f2ff"
+    }
+
+
+
+    ctx.strokeStyle = strokeStyle;
     ctx.lineWidth = 2 / aspect_size;
     ctx.shadowBlur = info.open ? 15 / aspect_size : 0;
-    ctx.shadowColor = "#00f2ff";
+    ctx.shadowColor = shadowColor;
     ctx.stroke();
 
     ctx.shadowBlur = 0;
-    ctx.fillStyle = info.open ? "#00f2ff" : "#f8fafc";
+    // ctx.fillStyle = info.open ? "#00f2ff" : "#f8fafc";
+    ctx.fillStyle = info.open ? "#ff0000" : "#f8fafc";
     ctx.font = `bold ${info.radius * 1.2}px monospace`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("?", info.x, info.y);
+
+    if (info.open) {
+        ctx.fillText("x", info.x, info.y);
+    } else {
+        ctx.fillText("?", info.x, info.y);
+    }
+
     ctx.restore();
 
     if (info.open) {
@@ -956,16 +1002,16 @@ function drawInfoPopup(vWidth, aspect_size) {
     ctx.restore();
 }
 
-function splitTextThreeLines(text) {
-    const words = text.split(" ");
-    const third = Math.ceil(words.length / 3);
-
-    const line1 = words.slice(0, third).join(" ");
-    const line2 = words.slice(third, third * 2).join(" ");
-    const line3 = words.slice(third * 2).join(" ");
-
-    return [line1, line2, line3];
-}
+// function splitTextThreeLines(text) {
+//     const words = text.split(" ");
+//     const third = Math.ceil(words.length / 3);
+//
+//     const line1 = words.slice(0, third).join(" ");
+//     const line2 = words.slice(third, third * 2).join(" ");
+//     const line3 = words.slice(third * 2).join(" ");
+//
+//     return [line1, line2, line3];
+// }
 
 function drawImages(vWidth, vHeight, aspect_size) {
     const centerX = vWidth / 2;
@@ -978,39 +1024,13 @@ function drawImages(vWidth, vHeight, aspect_size) {
         const x = (index === 0) ? centerX - spacing - displayWidth : centerX + spacing;
         const y = centerY - (displayHeight / 2);
 
-        img.hitbox = {x, y, w: displayWidth, h: displayHeight};
 
-        // 1. Draw "Analysis" Brackets
-        ctx.strokeStyle = "#00f2ff";
-        ctx.lineWidth = 2 / aspect_size;
-        const bLen = 15 / aspect_size; // Bracket length
+        // 1) Draw "Analysis" Brackets (unchanged)
+        // ctx.strokeStyle = "#00f2ff";
+        // ctx.lineWidth = 2 / aspect_size;
 
 
-        // Top Left
-        ctx.beginPath();
-        ctx.moveTo(x - (8 / aspect_size), y - (8 / aspect_size) + bLen);
-        ctx.lineTo(x - (8 / aspect_size), y - (8 / aspect_size));
-        ctx.lineTo(x - (8 / aspect_size) + bLen, y - (8 / aspect_size));
-        ctx.stroke();
-        // Top Right
-        ctx.beginPath();
-        ctx.moveTo(x + displayWidth + (8 / aspect_size) - bLen, y - (8 / aspect_size));
-        ctx.lineTo(x + displayWidth + (8 / aspect_size), y - (8 / aspect_size));
-        ctx.lineTo(x + displayWidth + (8 / aspect_size), y - (8 / aspect_size) + bLen);
-        ctx.stroke();
-        // Bottom Left
-        ctx.beginPath();
-        ctx.moveTo(x - (8 / aspect_size), y + displayHeight + (8 / aspect_size) - bLen);
-        ctx.lineTo(x - (8 / aspect_size), y + displayHeight + (8 / aspect_size));
-        ctx.lineTo(x - (8 / aspect_size) + bLen, y + displayHeight + (8 / aspect_size));
-        ctx.stroke();
-        // Bottom Right
-        ctx.beginPath();
-        ctx.moveTo(x + displayWidth + (8 / aspect_size) - bLen, y + displayHeight + (8 / aspect_size));
-        ctx.lineTo(x + displayWidth + (8 / aspect_size), y + displayHeight + (8 / aspect_size));
-        ctx.lineTo(x + displayWidth + (8 / aspect_size), y + displayHeight + (8 / aspect_size) - bLen);
-        ctx.stroke();
-
+        // 2) Draw image (first)
         if (img.complete) {
             ctx.drawImage(img, x, y, displayWidth, displayHeight);
             ctx.strokeStyle = "rgba(255,255,255,0.2)";
@@ -1020,51 +1040,121 @@ function drawImages(vWidth, vHeight, aspect_size) {
             ctx.fillRect(x, y, displayWidth, displayHeight);
         }
 
-        const font_size_scaled = Math.round(12 / aspect_size)
+        // 3) Description box + text (second)
+        const font_size_scaled = Math.round(12 / aspect_size);
+        const framePaddingX = 20 / aspect_size;
+        const framePaddingY = 15 / aspect_size;
 
+        // set font BEFORE measuring/wrapping
+        ctx.font = `${font_size_scaled}px monospace`;
 
-        // ctx.fillStyle = "#00f2ff";
-        // ctx.font = `13px monospace`;
-        // ctx.textAlign = "center";
-        // // ctx.fillText(`ANALYZE_DATA_0${index + 1}`, x + displayWidth / 2, y + displayHeight + (25 / aspect_size));
-        // const lines = splitTextTwoLines(img.description);
-        // const lineHeight = font_size_scaled + 4; // spacing between lines
-        //
-        // lines.forEach((line, i) => {
-        //     ctx.fillText(line, x + displayWidth / 2, y + displayHeight + (25 / aspect_size) + i * lineHeight);
-        // });
-        const framePaddingX = 20 / aspect_size; // extra width
-        const framePaddingY = 15 / aspect_size; // extra height
+        // wrap width: subtract LEFT+RIGHT padding (use X padding, not Y)
+        const maxTextWidth = displayWidth - (2 * framePaddingX);
+        const lines = wrapTextToLines(img.description, ctx, maxTextWidth);
 
-        const descWidth = displayWidth + 2 * framePaddingX;   // wider than image
-        const descHeight = font_size_scaled * 2 + 2 * framePaddingY; // taller to fit 2 lines + padding
+        const lineHeightPx = Math.round(font_size_scaled * 1.3);
 
+        // default = 2 lines tall (even if only 1 line)
+        const defaultLines = 2;
+        const textLinesForHeight = Math.max(lines.length, defaultLines);
 
-        const descX = x - framePaddingX; // shift left to center the wider frame
-        const descY = y + displayHeight + (15 / aspect_size); // slightly below image
+        const textBlockHeight = textLinesForHeight * lineHeightPx;
+        const descHeight = textBlockHeight + (2 * framePaddingY);
 
+        // ALIGNMENT RULE:
+        // desc box vertical center == image bottom edge
+        const imgBottom = y + displayHeight;
+        const descY = imgBottom - (descHeight / 2);
 
+        // make it slightly wider than image (your earlier plan) OR keep same width:
+        const descWidth = displayWidth; // wider than image
+        const descX = x;
+
+        const wholeHeight = displayHeight + (descHeight / 2)
+        img.hitbox = {x, y, w: displayWidth, h: wholeHeight};
+
+        // draw box
         ctx.lineWidth = 2 / aspect_size;
-        ctx.shadowBlur = 10 / aspect_size;
+        ctx.shadowBlur = 0;
         ctx.shadowColor = "#00f2ff";
 
-        ctx.fillStyle = "rgba(15,23,42,0.9)"; // dark background
-        ctx.strokeStyle = "#00f2ff";           // border color
+        ctx.fillStyle = "rgba(15,23,42,1)";
+        ctx.strokeStyle = "#00f2ff";
         drawCutCornerRect(descX, descY, descWidth, descHeight, 10 / aspect_size, true, true);
+
+        if (mouseIsInside(img.hitbox.x, img.hitbox.y, img.hitbox.w, img.hitbox.h)) {
+            ctx.save()
+            ctx.strokeStyle = "#00f2ff";
+            ctx.lineWidth = 2 / aspect_size
+
+            ctx.beginPath();
+
+            ctx.moveTo(x - (8 / aspect_size), y - (8 / aspect_size));
+            ctx.lineTo(x + displayWidth + (8 / aspect_size), y - (8 / aspect_size));
+            ctx.lineTo(x + displayWidth + (8 / aspect_size), descY + descHeight + (8 / aspect_size));
+            ctx.lineTo(x - (8 / aspect_size), descY + descHeight + (8 / aspect_size));
+            ctx.lineTo(x - (8 / aspect_size), y - (8 / aspect_size));
+            ctx.stroke();
+            ctx.restore()
+
+        } else {
+            ctx.save()
+            const bLen = 15 / aspect_size;
+            ctx.strokeStyle = "#00f2ff";
+            ctx.lineWidth = 2 / aspect_size
+
+            // Top Left
+            ctx.beginPath();
+            ctx.moveTo(x - (8 / aspect_size), y - (8 / aspect_size) + bLen);
+            ctx.lineTo(x - (8 / aspect_size), y - (8 / aspect_size));
+            ctx.lineTo(x - (8 / aspect_size) + bLen, y - (8 / aspect_size));
+            ctx.stroke();
+
+            // Top Right
+            ctx.beginPath();
+            ctx.moveTo(x + displayWidth + (8 / aspect_size) - bLen, y - (8 / aspect_size));
+            ctx.lineTo(x + displayWidth + (8 / aspect_size), y - (8 / aspect_size));
+            ctx.lineTo(x + displayWidth + (8 / aspect_size), y - (8 / aspect_size) + bLen);
+            ctx.stroke();
+
+            // Bottom Left
+            ctx.beginPath();
+            ctx.moveTo(x - (8 / aspect_size), descY + descHeight + (8 / aspect_size) - bLen);
+            ctx.lineTo(x - (8 / aspect_size), descY + descHeight + (8 / aspect_size));
+            ctx.lineTo(x - (8 / aspect_size) + bLen, descY + descHeight + (8 / aspect_size));
+            ctx.stroke();
+
+            // Bottom Right
+            ctx.beginPath();
+            ctx.moveTo(x + displayWidth + (8 / aspect_size) - bLen, descY + descHeight + (8 / aspect_size));
+            ctx.lineTo(x + displayWidth + (8 / aspect_size), descY + descHeight + (8 / aspect_size));
+            ctx.lineTo(x + displayWidth + (8 / aspect_size), descY + descHeight + (8 / aspect_size) - bLen);
+            ctx.stroke();
+
+            ctx.restore()
+        }
+
         ctx.shadowBlur = 0;
 
-
+        // draw centered text
+        ctx.save();
         ctx.fillStyle = "#00f2ff";
         ctx.font = `${font_size_scaled}px monospace`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
-        const lines = splitTextThreeLines(img.description);
-        const lineHeight = font_size_scaled + 4;
+        const t_x_center = descX + (descWidth / 2);
+        const t_y_center = descY + (descHeight / 2);
 
-        lines.forEach((line, i) => {
-            ctx.fillText(line, descX + descWidth / 2, descY + framePaddingY + i * lineHeight);
-        });
+        // center *actual* lines within the box (even if defaultHeight is 2 lines)
+        const actualTextHeight = lines.length * lineHeightPx;
+        let text_y = t_y_center - (actualTextHeight / 2) + (lineHeightPx / 2);
+
+        for (let i = 0; i < lines.length; i++) {
+            ctx.fillText(lines[i], t_x_center, text_y + (i * lineHeightPx));
+        }
+
+        ctx.restore();
     });
 }
 
@@ -1088,7 +1178,19 @@ function drawPasswords(vWidth, vHeight, aspect_size) {
         ctx.stroke();
 
         ctx.fillStyle = "#00f2ff";
-        ctx.fillRect(pw.x, pw.y, 4 / aspect_size, pw.height);
+
+        if (mouseIsInside(pw.x, pw.y, pw.width, pw.height)) {
+            ctx.save();
+            ctx.strokeStyle = "#00f2ff";
+            ctx.lineWidth = 4 / aspect_size;
+            ctx.shadowBlur = 10 / aspect_size;
+            ctx.shadowColor = "#00f2ff";
+            ctx.strokeRect(pw.x, pw.y, pw.width, pw.height);
+            ctx.restore();
+        } else {
+            ctx.fillRect(pw.x, pw.y, 4 / aspect_size, pw.height);
+        }
+
 
         let totalTextWidth = ctx.measureText(pw.text).width;
         let startX = pw.x + (pw.width / 2) - (totalTextWidth / 2);
@@ -1102,6 +1204,13 @@ function drawPasswords(vWidth, vHeight, aspect_size) {
             ctx.fillStyle = "#f8fafc";
             ctx.fillText(char, startX, pw.y + pw.height / 2);
             startX += ctx.measureText(char).width;
+        }
+
+        if (mouseData) {
+            const {mx, my} = mouseData
+            if (isInside(mx, my, pw.x, pw.y, pw.width, pw.height)) {
+
+            }
         }
         ctx.restore()
     });
@@ -1144,7 +1253,7 @@ function handlePasswordChoice(text) {
     startNewRound()
 }
 
-function wrapText(context, text, x, y, maxWidth, lineHeight) {
+function wrapTextToLines(text, context, maxWidth) {
     const words = text.split(' ')
     let line = ''
     let lines = []
@@ -1162,6 +1271,11 @@ function wrapText(context, text, x, y, maxWidth, lineHeight) {
         }
     }
     lines.push(line)
+    return lines;
+}
+
+function wrapText(context, text, x, y, maxWidth, lineHeight) {
+    let lines = wrapTextToLines(text, context, maxWidth);
 
     // 2. Draw each line
     // We adjust the Y start point so the group of lines is vertically centered
@@ -1261,6 +1375,7 @@ function drawBonusRound(vWidth, vHeight, aspect_size) {
     const x = (vWidth - optionWidth) / 2;
 
     q.options.forEach((opt, i) => {
+        ctx.save()
         const y = startY + i * (optionHeight + optionGap);
         const isSelected = selectedOption === i;
 
@@ -1269,13 +1384,22 @@ function drawBonusRound(vWidth, vHeight, aspect_size) {
         if (isSelected) {
             // Selected: Green Glow
             ctx.shadowBlur = 15 / aspect_size;
-            ctx.shadowColor = "#22c55e";
-            ctx.fillStyle = "rgba(34, 197, 94, 0.2)"; // Low opacity green fill
-            ctx.strokeStyle = "#22c55e";
+            ctx.shadowColor = "#00f2ff";
+            ctx.fillStyle = "rgb(5,92,104)"
+            ctx.strokeStyle = "#00f2ff";
         } else {
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = "rgba(15, 23, 42, 0.8)";
-            ctx.strokeStyle = "#475569"; // Slate border
+
+            if(mouseIsInside(x,y,optionWidth,optionHeight)){
+                ctx.shadowBlur = 5;
+                ctx.fillStyle = "rgb(5,92,104)"
+                ctx.strokeStyle = "#475569"; // Slate border
+            }
+            else {
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = "rgba(15, 23, 42, 0.8)";
+                ctx.strokeStyle = "#475569"; // Slate border
+            }
+
         }
 
         drawCutCornerRect(x, y, optionWidth, optionHeight, 10 / aspect_size, true, true);
@@ -1288,6 +1412,7 @@ function drawBonusRound(vWidth, vHeight, aspect_size) {
 
         const prefix = String.fromCharCode(65 + i); // 65 is 'A'
         ctx.fillText(`[${prefix}] ${opt}`, vWidth / 2, y + optionHeight / 2);
+        ctx.restore()
     });
 
     // 5. Score Readout (Bottom HUD)
@@ -1326,6 +1451,24 @@ function startNewRound() {
     lastTime = Date.now()
 }
 
+function mouseIsInside(x, y, w, h) {
+    if (mouseData) {
+        const {mx, my} = mouseData
+        return isInside(mx, my, x, y, w, h)
+    }
+
+    return false
+}
+
+function mouseIsInsideCircle(x, y, radius) {
+    if (mouseData) {
+        const {mx, my} = mouseData
+        const dx = mx - x
+        const dy = my - y
+        return Math.sqrt(dx * dx + dy * dy) <= radius
+    }
+    return false
+}
 
 function isInside(mx, my, x, y, w, h) {
     return mx >= x && mx <= x + w && my >= y && my <= y + h
@@ -1500,7 +1643,9 @@ canvas.addEventListener("click", (e) => {
     const dy = my - info.y
 
     const wasHovering = info.open;
-    info.open = Math.sqrt(dx * dx + dy * dy) <= info.radius
+    if (Math.sqrt(dx * dx + dy * dy) <= info.radius) {
+        info.open = !info.open
+    }
 
     if (wasHovering && !info.open) {
         lastTime = Date.now();
@@ -1593,4 +1738,18 @@ canvas.addEventListener("click", (e) => {
         })
     }
 })
+
+canvas.addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect()
+    const mx = e.clientX - rect.left
+    const my = e.clientY - rect.top
+    mouseData = {
+        mx,
+        my
+    }
+})
+
+canvas.addEventListener("mouseleave", () => {
+    mouseData = null
+});
 
