@@ -98,8 +98,8 @@ const safeImages = []
 const unsafeImages = []
 
 // How many images to try loading (e.g., checks good1_final up to good20_final)
-const MAX_IMAGES_TO_CHECK_GOOD = 15
-const MAX_IMAGES_TO_CHECK_BAD = 18
+const MAX_IMAGES_TO_CHECK_GOOD = 20
+const MAX_IMAGES_TO_CHECK_BAD = 20
 
 const {game: game, canvas: canvas2D, ctx: ctx2D, StartMiniGame, isHappyEnd} = Game2D(endMiniGame)
 

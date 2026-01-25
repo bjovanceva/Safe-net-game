@@ -15,6 +15,11 @@ const images_description={
     good13_final: "Not sharing phone numbers, home addresses, or school details publicly",
     good14_final: "Activating both the antivirus software and the firewall",
     good15_final: "Leaving social media accounts private",
+    good16_final: "A user is clicking 'Restart & Update Now' on a critical system update notification",
+    good17_final: "A girl is clicking a 'Report' button while viewing aggressive, hurtful messages from an anonymous bully on her smartphone",
+    good18_final: "Ensuring a website is legitimate before interacting with it",
+    good19_final: "Blocking a user after receiving inappropriate messages from them",
+    good20_final: "Creating redundant copies of essential files to ensure data recovery in the event of hardware failure or accidental deletion",
 
 
     bad1_final: "A social media interface prompting the user to share a post publicly",
@@ -35,6 +40,8 @@ const images_description={
     bad16_final: "A user shares their password with a friend",
     bad17_final: "Forgetting to log out on school, library, or café computers",
     bad18_final: "Posting where you are while still there",
+    bad19_final: "A user is clicking 'Cancel' button on a critical system update notification",
+    bad20_final: "A user is sharing a photo of a government ID card with his friend Alex",
 }
 
 export default images_description;
