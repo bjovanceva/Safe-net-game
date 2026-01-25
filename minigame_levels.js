@@ -7,14 +7,10 @@ export function getRandomLevel(passed_levels = []) {
         return {name: "finished", level: []}
     }
 
-    console.log(Math.round(Math.random() * (remaining_levels.length - 1)))
+    // console.log(Math.round(Math.random() * (remaining_levels.length - 1)))
 
-    let randIndex = Math.round(Math.random() * (remaining_levels.length - 1))
-    while (randIndex >= remaining_levels.length) {
-        randIndex = Math.round(Math.random() * (remaining_levels.length - 1))
-    }
-
-    let randLevelName = remaining_levels[randIndex]
+    const randIndex = Math.floor(Math.random() * remaining_levels.length);
+    const randLevelName = remaining_levels[randIndex];
     return {
         name: randLevelName,
         level: Minigame_levels[randLevelName]
