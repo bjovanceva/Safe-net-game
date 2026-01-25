@@ -45,13 +45,14 @@ const SYMBOLS = "!@#$%&*"
 const PASSWORDS_MODE = "passwords"
 const IMAGES_MODE = "images"
 
+
 let mainRafId = null;
 
 let score = 0
 let gameRunning = false
 let passwordChoices = []
 let currentImages = []
-let roundTime = 15
+let roundTime = 5
 let timeLeft = roundTime
 let lastTime = Date.now()
 let reallySafePasswords = []
@@ -62,7 +63,7 @@ let notSafePasswords = []
 let currentRoundMode = PASSWORDS_MODE
 
 const gameDuration = 20
-const ROUND_DURATION = 15
+let roundDuration = 5
 
 let timeElapsed = 0
 let gameEnded = false
@@ -334,6 +335,9 @@ function getPasswordBoxDimensions(vWidth, vHeight) {
  * of screens having higher DPI so canvas needs to be scaled
  */
 function spawnTwoPasswords() {
+    roundTime = 5
+    roundDuration = 5
+
     passwordChoices = []
     const vWidth = canvas.width / dpr
     const vHeight = canvas.height / dpr
@@ -372,6 +376,10 @@ function spawnTwoImages() {
         spawnTwoPasswords();
         return;
     }
+
+    roundTime = 10
+    timeLeft = 10
+    roundDuration = 10
 
     currentImages = [];
     const safeImg = safeImages[Math.floor(Math.random() * safeImages.length)];
@@ -753,7 +761,8 @@ function drawInstructions(vWidth, vHeight, aspect_size) {
     ctx.save();
 
     const scaleFont = Math.round(INSTRUCTION_TEXT_FONT_SIZE / aspect_size);
-    const yPos = vHeight * 0.15;
+    // const yPos = vHeight * 0.15;
+    const yPos = vHeight * 0.15 - (40 / aspect_size);
 
     // 1. Draw a subtle "Underline" or accent bar
     ctx.strokeStyle = "rgba(0, 242, 255, 0.3)";
@@ -830,7 +839,7 @@ function drawTimer(vWidth, vHeight, aspect_size) {
 
 
     const startAngle = -Math.PI / 2;
-    const progress = timeLeft / ROUND_DURATION; // Assuming you have roundDuration (e.g., 5s)
+    const progress = timeLeft / roundDuration; // Assuming you have roundDuration (e.g., 5s)
     const endAngle = startAngle + (Math.PI * 2 * progress);
 
     ctx.beginPath();
@@ -894,6 +903,7 @@ function drawInfoPopup(vWidth, aspect_size) {
 
     let tooltipX = info.x - tooltipWidth;
     let tooltipY = info.y + (30 / aspect_size);
+
 
     ctx.save();
 
@@ -1583,3 +1593,4 @@ canvas.addEventListener("click", (e) => {
         })
     }
 })
+
