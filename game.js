@@ -380,6 +380,8 @@ function spawnTwoImages() {
     roundTime = 10
     timeLeft = 10
     roundDuration = 10
+    timeElapsed -= 5
+
 
     currentImages = [];
     const safeImg = safeImages[Math.floor(Math.random() * safeImages.length)];
@@ -411,8 +413,7 @@ function endMiniGame() {
         controls.remove(); // Completely removes the elements from the DOM
     }
 
-    minScore = 10
-    successSequence = 0
+
     isMiniGameFinished = true
     let isHappy = isHappyEnd();
     console.log("HappyEnd")
@@ -420,6 +421,10 @@ function endMiniGame() {
     if (isHappy) {
         score += 10
     }
+
+    minScore = score + 10
+    successSequence = 0
+
     startGame()
 }
 
