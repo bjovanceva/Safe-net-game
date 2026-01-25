@@ -1384,9 +1384,18 @@ function drawBonusRound(vWidth, vHeight, aspect_size) {
         if (isSelected) {
             // Selected: Green Glow
             ctx.shadowBlur = 15 / aspect_size;
-            ctx.shadowColor = "#00f2ff";
-            ctx.fillStyle = "rgb(5,92,104)"
-            ctx.strokeStyle = "#00f2ff";
+            if(i === q.correctIndex){
+                ctx.shadowColor = "#21c02c";
+                ctx.fillStyle = "rgb(20,104,5)"
+                ctx.strokeStyle = "#21c02c";
+            }
+            else {
+                ctx.shadowColor = "#c02121";
+                ctx.fillStyle = "rgb(104,5,5)"
+                ctx.strokeStyle = "#c02121";
+            }
+
+
         } else {
 
             if(mouseIsInside(x,y,optionWidth,optionHeight)){
