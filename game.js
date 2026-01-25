@@ -1521,7 +1521,12 @@ function endBonusRound() {
     } else if (bonusScore === 5) {
         score += bonusScore;
         startMiniGame()
-    } else {
+    }
+    // if (bonusScore >=1) {
+    //     score += bonusScore;
+    //     startMiniGame()
+    // }
+    else {
         gamePhase = FINAL_GAME_OVER_PHASE
     }
 }
