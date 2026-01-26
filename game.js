@@ -183,8 +183,8 @@ async function loadGameImages() {
     for (const r of unsafeResults) if (r.status === "fulfilled") unsafeImages.push(r.value);
 
     // Hard requirement: must have at least 1 of each
-    console.log(safeImages.length)
-    console.log(unsafeImages.length)
+    // console.log(safeImages.length)
+    // console.log(unsafeImages.length)
     if (safeImages.length === 0 || unsafeImages.length === 0) {
         throw new Error("Not enough images loaded (need at least 1 safe and 1 unsafe).");
     }
@@ -380,7 +380,7 @@ function spawnTwoImages() {
     roundTime = 10
     timeLeft = 10
     roundDuration = 10
-    timeElapsed -= 5
+    timeElapsed -= 2
 
 
     currentImages = [];
@@ -404,7 +404,7 @@ function startMiniGame() {
     StartMiniGame()
 }
 
-function endMiniGame() {
+function endMiniGame(mini_games_complete_count) {
     canvas.style.display = 'block'
     canvas2D.style.display = "none"
 
@@ -414,13 +414,16 @@ function endMiniGame() {
     }
 
 
+    // console.log(mini_games_complete_count)
     isMiniGameFinished = true
-    let isHappy = isHappyEnd();
-    console.log("HappyEnd")
-    console.log(isHappy)
-    if (isHappy) {
-        score += 10
-    }
+    // let isHappy = isHappyEnd();
+    // console.log("HappyEnd")
+    // console.log(isHappy)
+    // if (isHappy) {
+    //     score += 10
+    // }
+
+    score += mini_games_complete_count * 10
 
     minScore = score + 10
     successSequence = 0

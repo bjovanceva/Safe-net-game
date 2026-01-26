@@ -29,6 +29,7 @@ import {getRandomLevel} from "./minigame_levels.js";
 export function Game2D(endGameFunc) {
 
     let passedLevels = []
+    let passed_count = 0
 
     const PLAYER_COLORS = [
         "#FF4D4D", // red
@@ -69,6 +70,7 @@ export function Game2D(endGameFunc) {
 
         next_level(game) {
             alert("Great Job, lets go to next level (:")
+            passed_count+=1
             StartMiniGame()
         },
 
@@ -807,6 +809,8 @@ export function Game2D(endGameFunc) {
     const StartMiniGame = function () {
         centeredCamera = false;
 
+        console.log(passed_count," - ccc")
+
         loopGen++;      // invalidates any currently-running Loop()
         stopMiniLoop(); // cancels any scheduled future frame
 
@@ -834,7 +838,8 @@ export function Game2D(endGameFunc) {
         game.running = false;
         game.detachControls();
         stopMiniLoop();
-        endGameFunc();
+        endGameFunc(passed_count);
+        passed_count = 0
     }
 
 
