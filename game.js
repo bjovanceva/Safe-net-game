@@ -1522,7 +1522,7 @@ function endBonusRound() {
         score += bonusScore;
         startMiniGame()
     }
-    // if (bonusScore >=1) {
+    // if (bonusScore >=0) {
     //     score += bonusScore;
     //     startMiniGame()
     // }
